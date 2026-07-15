@@ -1,0 +1,20 @@
+# Local environment files (keep the documented example)
+.env
+.env.local
+.env.*.local
+!.env.example
+
+# Frontend
+node_modules/
+.next/
+out/
+npm-debug.log*
+
+# Backend
+target/
+*.log
+
+# Editors and operating systems
+.idea/
+.vscode/
+.DS_Store
