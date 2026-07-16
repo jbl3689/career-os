@@ -26,84 +26,21 @@ When a task is ambiguous, prefer the simpler implementation that preserves a pat
 
 ## Current stage
 
-**Stage 0: Repository and application skeletons**
+**Stage 1: Manual job tracker**
 
-The only current goal is:
+Stage 0 is complete. The current goal is:
 
-> Start a Next.js frontend and a Spring Boot backend, connect them with one simple health request, and document how to run both locally.
+> Create, view, and edit job applications using temporary in-memory storage, proving the core product flow before introducing PostgreSQL.
 
-### Stage 0 deliverables
+### Stage 1 deliverables
 
-Create:
-
-```text
-career-os/
-├── AGENTS.md
-├── PRODUCT_PLAN.md
-├── README.md
-├── .gitignore
-├── .env.example
-└── apps/
-    ├── web/
-    └── api/
-```
-
-The frontend should:
-
-- use Next.js, React, and TypeScript;
-- use the App Router;
-- have a simple home page;
-- call the backend health endpoint;
-- show a clear success or error state;
-- contain no authentication, database code, or AI code.
-
-The backend should:
-
-- use Java 21 and Spring Boot;
-- use the Maven Wrapper;
-- expose a health endpoint such as `GET /api/v1/health`;
-- return a small JSON response;
-- include one basic test;
-- contain no JPA, PostgreSQL, OAuth, Gmail, or AI dependencies yet.
-
-The root README should explain:
-
-- required local tools;
-- how to install frontend dependencies;
-- how to run the frontend;
-- how to run the backend;
-- the local URLs;
-- how to run tests;
-- known setup issues.
-
-### Stage 0 completion criteria
-
-Stage 0 is complete only when:
-
-- both applications start locally;
-- the frontend can successfully call the backend;
-- backend tests pass;
-- frontend linting and type checking pass;
-- setup instructions have been tested and documented;
-- no later-stage infrastructure has been added.
-
-When Stage 0 is complete, stop and summarise what was built. Do not automatically begin Stage 1.
-
----
-
-## Later stages
-
-These stages are planned but must not be started early.
-
-### Stage 1: Manual job tracker
-
-Start only after Stage 0 works.
-
-Goal:
-
-- create, view, and edit job applications;
-- use temporary in-memory storage or a clearly labelled mock implementation;
-- establish the core screens and API shape before introducing PostgreSQL.
+- job application list page;
+- create application form;
+- application detail page;
+- edit status and notes;
+- temporary in-memory backend storage;
+- clear API validation and error responses;
+- a small set of backend and frontend tests.
 
 Likely fields:
 
@@ -114,9 +51,38 @@ Likely fields:
 - notes;
 - last activity date.
 
-Do not add Gmail or Google authentication in this stage.
+### Stage 1 progress
 
-Stop after the manual flow works and request a review before continuing.
+- complete: backend application model and status values;
+- complete: temporary in-memory storage;
+- complete: list and create endpoints;
+- complete: detail and edit endpoints;
+- complete: clear not-found responses;
+- complete: request validation and focused backend tests;
+- remaining: frontend list, create, detail, and edit flows;
+- remaining: frontend tests and final documentation review.
+
+Use no PostgreSQL, JPA, Docker Compose, Gmail, Google authentication, or AI code in this stage.
+
+### Stage 1 completion criteria
+
+Stage 1 is complete only when:
+
+- a user can create, list, view, and edit a job application;
+- loading, empty, success, and failure states are understandable;
+- temporary storage is clearly documented;
+- backend tests pass;
+- frontend linting and type checking pass;
+- relevant frontend tests pass;
+- no Stage 2 infrastructure has been added.
+
+When Stage 1 is complete, stop and request a review. Do not automatically begin Stage 2.
+
+---
+
+## Later stages
+
+These stages are planned but must not be started early.
 
 ### Stage 2: PostgreSQL persistence
 
@@ -340,15 +306,12 @@ Do not begin the next stage without an explicit request.
 
 ---
 
-## Immediate first task
+## Immediate next task
 
-Unless the user gives a more specific instruction, the first implementation task is:
+The Stage 1 backend API is complete. Unless the user gives a more specific instruction, the next implementation task is:
 
-1. create the repository structure;
-2. scaffold the Next.js frontend;
-3. scaffold the Spring Boot backend;
-4. add `GET /api/v1/health`;
-5. display the backend response on the frontend home page;
-6. document local setup and run commands;
-7. run the available tests, linting, and type checking;
-8. stop.
+1. build the frontend application list with loading, empty, and error states;
+2. add the create application form;
+3. connect both flows to the backend API;
+4. add focused frontend tests;
+5. stop for review before building the detail and edit screens.

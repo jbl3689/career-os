@@ -1,7 +1,7 @@
 # Career OS
 
-Career OS is a learning-led career assistant. Stage 0 contains only a Next.js
-frontend, a Spring Boot API, and one health check connecting them.
+Career OS is a learning-led career assistant. Stage 1 is building a manual job
+application tracker with a Next.js frontend and Spring Boot API.
 
 ## Requirements
 
@@ -11,7 +11,8 @@ frontend, a Spring Boot API, and one health check connecting them.
 
 A system Maven installation is not required; the backend includes the Maven
 Wrapper. PostgreSQL, Docker, authentication, Gmail, and AI are intentionally not
-part of this stage.
+part of this stage. Job applications are currently held in memory and are lost
+whenever the API restarts.
 
 Check your installed versions:
 
@@ -60,6 +61,52 @@ The frontend uses `http://localhost:8080` by default. To use another API URL,
 copy `.env.example` to `apps/web/.env.local` and change `API_BASE_URL` there.
 Because the health request is made by the Next.js server, Stage 0 does not need
 browser CORS configuration.
+
+## Current backend API
+
+List applications:
+
+```bash
+curl http://localhost:8080/api/v1/applications
+```
+
+Create an application:
+
+```bash
+curl -X POST http://localhost:8080/api/v1/applications \
+  -H 'Content-Type: application/json' \
+  -d '{
+    "companyName": "Acme Ltd",
+    "roleTitle": "Software Engineer",
+    "status": "APPLIED",
+    "applicationDate": "2026-07-16",
+    "notes": "Applied through the company website."
+  }'
+```
+
+Fetch application `1`:
+
+```bash
+curl http://localhost:8080/api/v1/applications/1
+```
+
+Update its status and notes:
+
+```bash
+curl -X PATCH http://localhost:8080/api/v1/applications/1 \
+  -H 'Content-Type: application/json' \
+  -d '{
+    "status": "INTERVIEWING",
+    "notes": "First interview booked."
+  }'
+```
+
+Supported statuses are `APPLIED`, `INTERVIEWING`, `OFFER`, `REJECTED`, and
+`WITHDRAWN`. Company name, role title, status, and application date are required.
+The create endpoint returns `201 Created`; invalid requests return `400 Bad
+Request` with field-level errors where possible. Fetching or updating an unknown
+ID returns `404 Not Found`. Updating an application refreshes its last activity
+date using the API server's current local date.
 
 ## Run checks
 
