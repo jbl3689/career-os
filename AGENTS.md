@@ -26,91 +26,45 @@ When a task is ambiguous, prefer the simpler implementation that preserves a pat
 
 ## Current stage
 
-**Stage 1: Manual job tracker**
+**Stage 2: PostgreSQL persistence**
 
-Stage 0 is complete. The current goal is:
+Stages 0 and 1 are complete. The current goal is:
 
-> Create, view, and edit job applications using temporary in-memory storage, proving the core product flow before introducing PostgreSQL.
+> Replace temporary in-memory storage with PostgreSQL while preserving the
+> existing manual job-tracker behaviour and API shape.
 
-### Stage 1 deliverables
+### Stage 2 deliverables
 
-- job application list page;
-- create application form;
-- application detail page;
-- edit status and notes;
-- temporary in-memory backend storage;
-- clear API validation and error responses;
-- a small set of backend and frontend tests.
+- PostgreSQL through Docker Compose;
+- Spring Data JPA and the PostgreSQL JDBC driver;
+- Flyway migrations as the source of truth for the database schema;
+- persisted companies, job applications, and job events;
+- integration tests using PostgreSQL through Testcontainers;
+- plain-language database startup, inspection, reset, and troubleshooting documentation.
 
-Likely fields:
+### Stage 2 progress
 
-- company name;
-- role title;
-- status;
-- application date;
-- notes;
-- last activity date.
+- complete: local PostgreSQL container and initial Docker Compose documentation;
+- complete: Spring Boot database connection and persistence dependencies;
+- complete: initial Flyway schema migration;
+- complete: JPA entities;
+- pending: Spring Data JPA repositories;
+- pending: replacement of in-memory application storage;
+- pending: persisted job events;
+- pending: PostgreSQL integration tests;
+- pending: final setup, reset, inspection, and troubleshooting documentation.
 
-### Stage 1 progress
+Do not add Google integration, authentication, Gmail processing, or AI code in
+this stage.
 
-- complete: backend application model and status values;
-- complete: temporary in-memory storage;
-- complete: list and create endpoints;
-- complete: detail and edit endpoints;
-- complete: clear not-found responses;
-- complete: request validation and focused backend tests;
-- complete: frontend list, create, detail, and edit flows;
-- complete: frontend loading, empty, success, and error states;
-- complete: focused frontend tests and documentation review.
-
-Use no PostgreSQL, JPA, Docker Compose, Gmail, Google authentication, or AI code in this stage.
-
-### Stage 1 completion criteria
-
-Stage 1 is complete only when:
-
-- a user can create, list, view, and edit a job application;
-- loading, empty, success, and failure states are understandable;
-- temporary storage is clearly documented;
-- backend tests pass;
-- frontend linting and type checking pass;
-- relevant frontend tests pass;
-- no Stage 2 infrastructure has been added.
-
-When Stage 1 is complete, stop and request a review. Do not automatically begin Stage 2.
+When Stage 2 is complete, stop and request a review. Do not automatically begin
+Stage 3.
 
 ---
 
 ## Later stages
 
 These stages are planned but must not be started early.
-
-### Stage 2: PostgreSQL persistence
-
-Start only after the manual tracker behaviour is understood.
-
-Goal:
-
-- replace temporary storage with PostgreSQL;
-- introduce Docker Compose;
-- add Spring Data JPA;
-- add Flyway migrations;
-- persist companies, applications, and timeline events;
-- document database startup, reset, and troubleshooting steps.
-
-The developer is new to PostgreSQL in personal projects. Every setup step must be explained plainly in the README, including:
-
-- what Docker is doing;
-- how the database container starts;
-- where credentials are configured;
-- how Spring Boot connects to it;
-- how migrations run;
-- how to inspect the database;
-- how to reset local data safely.
-
-Do not assume prior PostgreSQL knowledge.
-
-Do not add Google integration in this stage.
 
 ### Stage 3: Google authentication
 
@@ -309,8 +263,6 @@ Do not begin the next stage without an explicit request.
 
 ## Immediate next task
 
-Stage 1 is complete. Stop and request a review before moving forward.
-
-Do not begin Stage 2 unless the user explicitly requests it. The next stage will
-replace in-memory storage with PostgreSQL, Docker Compose, JPA, Flyway, and
-Testcontainers, with plain-language setup documentation.
+Add Spring Data JPA repository interfaces and focused Testcontainers-backed
+repository integration tests. Keep the application service on in-memory storage
+until the repository behaviour is understood and verified.
