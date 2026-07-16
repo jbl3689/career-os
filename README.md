@@ -54,13 +54,23 @@ npm run dev
 
 Then open:
 
-- Frontend: http://localhost:3000
+- Frontend application tracker: http://localhost:3000/applications
 - API health endpoint: http://localhost:8080/api/v1/health
 
-The frontend uses `http://localhost:8080` by default. To use another API URL,
-copy `.env.example` to `apps/web/.env.local` and change `API_BASE_URL` there.
-Because the health request is made by the Next.js server, Stage 0 does not need
-browser CORS configuration.
+The frontend uses `http://localhost:8080` by default. Next.js proxies browser
+requests under `/api/v1` to the Spring Boot API, so local development does not
+need separate CORS configuration. To use another API URL, copy `.env.example`
+to `apps/web/.env.local`, change `API_BASE_URL`, and restart Next.js.
+
+From the application tracker you can:
+
+- create an application;
+- view all applications;
+- select an application to see its details;
+- update its status and notes.
+
+The UI deliberately uses simple styling during Stage 1. All application data is
+temporary and is cleared when the Spring Boot API restarts.
 
 ## Current backend API
 
@@ -123,6 +133,7 @@ Frontend linting and type checking:
 cd apps/web
 npm run lint
 npm run typecheck
+npm run test
 ```
 
 You can also verify a production frontend build with `npm run build`.

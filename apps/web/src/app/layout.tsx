@@ -1,5 +1,7 @@
 import type { Metadata } from "next";
+import Link from "next/link";
 import "./globals.css";
+import { Providers } from "./Providers";
 
 export const metadata: Metadata = {
   title: "Career OS",
@@ -13,7 +15,22 @@ export default function RootLayout({
 }>) {
   return (
     <html lang="en" className="h-full antialiased">
-      <body className="min-h-full flex flex-col">{children}</body>
+      <body className="flex min-h-full flex-col">
+        <header className="border-b border-slate-200 bg-white">
+          <nav className="mx-auto flex w-full max-w-5xl items-center justify-between px-6 py-4">
+            <Link href="/applications" className="font-semibold text-slate-950">
+              Career OS
+            </Link>
+            <Link
+              href="/applications"
+              className="text-sm text-slate-600 hover:text-slate-950"
+            >
+              Applications
+            </Link>
+          </nav>
+        </header>
+        <Providers>{children}</Providers>
+      </body>
     </html>
   );
 }

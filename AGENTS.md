@@ -59,8 +59,9 @@ Likely fields:
 - complete: detail and edit endpoints;
 - complete: clear not-found responses;
 - complete: request validation and focused backend tests;
-- remaining: frontend list, create, detail, and edit flows;
-- remaining: frontend tests and final documentation review.
+- complete: frontend list, create, detail, and edit flows;
+- complete: frontend loading, empty, success, and error states;
+- complete: focused frontend tests and documentation review.
 
 Use no PostgreSQL, JPA, Docker Compose, Gmail, Google authentication, or AI code in this stage.
 
@@ -308,10 +309,8 @@ Do not begin the next stage without an explicit request.
 
 ## Immediate next task
 
-The Stage 1 backend API is complete. Unless the user gives a more specific instruction, the next implementation task is:
+Stage 1 is complete. Stop and request a review before moving forward.
 
-1. build the frontend application list with loading, empty, and error states;
-2. add the create application form;
-3. connect both flows to the backend API;
-4. add focused frontend tests;
-5. stop for review before building the detail and edit screens.
+Do not begin Stage 2 unless the user explicitly requests it. The next stage will
+replace in-memory storage with PostgreSQL, Docker Compose, JPA, Flyway, and
+Testcontainers, with plain-language setup documentation.
