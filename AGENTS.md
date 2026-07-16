@@ -48,11 +48,11 @@ Stages 0 and 1 are complete. The current goal is:
 - complete: Spring Boot database connection and persistence dependencies;
 - complete: initial Flyway schema migration;
 - complete: JPA entities;
-- pending: Spring Data JPA repositories;
-- pending: replacement of in-memory application storage;
-- pending: persisted job events;
-- pending: PostgreSQL integration tests;
-- pending: final setup, reset, inspection, and troubleshooting documentation.
+- complete: Spring Data JPA repositories;
+- complete: replacement of in-memory application storage;
+- complete: persisted job events;
+- complete: PostgreSQL integration tests;
+- complete: final setup, reset, inspection, and troubleshooting documentation.
 
 Do not add Google integration, authentication, Gmail processing, or AI code in
 this stage.
@@ -263,6 +263,5 @@ Do not begin the next stage without an explicit request.
 
 ## Immediate next task
 
-Add Spring Data JPA repository interfaces and focused Testcontainers-backed
-repository integration tests. Keep the application service on in-memory storage
-until the repository behaviour is understood and verified.
+Stage 2 is complete. Stop and request a review before moving forward. Do not
+begin Stage 3 without the user's explicit request.

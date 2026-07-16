@@ -146,10 +146,9 @@ From the application tracker you can:
 - select an application to see its details;
 - update its status and notes.
 
-The UI deliberately uses simple styling. During the first Stage 2 setup slice,
-Spring Boot connects to PostgreSQL and runs Flyway during startup, but job
-applications still use temporary in-memory storage. The next slice will add the
-first schema migration before application persistence is switched over.
+The UI deliberately uses simple styling. Job applications are now stored in
+PostgreSQL, so they remain available after the API or database container is
+stopped and restarted, provided the Docker volume is preserved.
 
 ### How the API database startup works
 
@@ -162,11 +161,24 @@ When Spring Boot starts:
 3. Hibernate validates JPA mappings against the migrated schema;
 4. the web server starts only if those database steps succeed.
 
-The V1 migration and matching JPA entities are now present. The application
-service still uses in-memory storage, but startup proves that the SQL schema and
-Java mappings agree without changing job-application behaviour.
+The V1 migration, matching JPA entities, and Spring Data repositories are now
+present. The application service uses those repositories instead of an
+in-memory collection. Each create or update operation runs in a database
+transaction, meaning its application and timeline-event changes either all
+succeed or all fail together.
 `spring.jpa.hibernate.ddl-auto=validate` deliberately prevents Hibernate from
 silently creating or changing tables. Flyway will remain the only schema owner.
+
+The persistence path is:
+
+```text
+HTTP controller -> application service -> Spring Data repository -> PostgreSQL
+```
+
+Creating an application also stores an `APPLICATION_CREATED` event. An update
+stores `STATUS_CHANGED` and/or `NOTES_UPDATED` events only when the corresponding
+value actually changes. Timeline events are persisted for later product work;
+they are not exposed in the Stage 2 UI yet.
 
 ### Current database schema
 
@@ -199,6 +211,9 @@ Then use these `psql` commands:
 \d job_applications
 \d job_events
 SELECT * FROM flyway_schema_history;
+SELECT * FROM companies;
+SELECT * FROM job_applications;
+SELECT * FROM job_events ORDER BY event_date, id;
 \q
 ```
 
@@ -232,7 +247,7 @@ curl -X POST http://localhost:8080/api/v1/applications \
   }'
 ```
 
-Fetch application `1`:
+Fetch an application, replacing `1` with the ID returned by the create request:
 
 ```bash
 curl http://localhost:8080/api/v1/applications/1
@@ -265,10 +280,12 @@ cd apps/api
 ./mvnw test
 ```
 
-During the current Stage 2 transition, Spring context tests connect to the local
-Compose database, so Docker Desktop and `docker compose up -d` must be running
-first. The next testing slice will replace this temporary coupling with an
-isolated PostgreSQL Testcontainer.
+Docker Desktop must be running for backend tests, but the Compose database does
+not need to be started. Testcontainers launches a separate, disposable
+PostgreSQL 18.4 container on a random port, Flyway creates its schema, and the
+container is removed after the test run. This keeps tests isolated from your
+local development data while testing against the same database type used by the
+application.
 
 Frontend linting and type checking:
 
@@ -293,6 +310,9 @@ You can also verify a production frontend build with `npm run build`.
   Spring dependencies.
 - Docker Desktop must be running before `docker compose` commands can reach the
   Docker engine.
+- Backend tests also require Docker Desktop because Testcontainers launches a
+  temporary PostgreSQL container. If tests report that no Docker environment is
+  available, start Docker Desktop and rerun them.
 - If port 5432 is already in use, set a different `POSTGRES_PORT` in the root
   `.env` file. The later Spring connection settings must use the same port.
 - PostgreSQL uses `POSTGRES_DB`, `POSTGRES_USER`, and `POSTGRES_PASSWORD` only
@@ -300,6 +320,11 @@ You can also verify a production frontend build with `npm run build`.
   does not alter the existing database or user. During local setup, either
   restore the original values or deliberately reset the volume with
   `docker compose down --volumes` before restarting.
+- Never edit a Flyway migration after it has run. If startup reports a checksum
+  mismatch for V1, restore the committed V1 file. Put intentional schema changes
+  in a new V2 migration instead.
+- PostgreSQL IDs are generated identifiers, not row counts. Deleting every row
+  does not reset the next ID; gaps such as `1, 2, 5` are normal and harmless.
 - `npm audit` currently reports a moderate PostCSS advisory through Next.js.
   The suggested forced fix would install an incompatible Next.js version, so do
   not run `npm audit fix --force`; update when a compatible Next.js release

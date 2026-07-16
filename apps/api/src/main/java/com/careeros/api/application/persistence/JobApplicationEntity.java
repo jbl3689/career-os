@@ -89,4 +89,10 @@ public class JobApplicationEntity {
 	public LocalDate getLastActivityDate() {
 		return lastActivityDate;
 	}
+
+	public void update(ApplicationStatus status, String notes, LocalDate lastActivityDate) {
+		this.status = status;
+		this.notes = notes;
+		this.lastActivityDate = lastActivityDate;
+	}
 }

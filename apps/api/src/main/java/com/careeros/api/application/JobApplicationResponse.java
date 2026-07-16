@@ -2,6 +2,8 @@ package com.careeros.api.application;
 
 import java.time.LocalDate;
 
+import com.careeros.api.application.persistence.JobApplicationEntity;
+
 public record JobApplicationResponse(
 		long id,
 		String companyName,
@@ -11,14 +13,14 @@ public record JobApplicationResponse(
 		String notes,
 		LocalDate lastActivityDate) {
 
-	public static JobApplicationResponse from(JobApplication application) {
+	public static JobApplicationResponse from(JobApplicationEntity application) {
 		return new JobApplicationResponse(
-				application.id(),
-				application.companyName(),
-				application.roleTitle(),
-				application.status(),
-				application.applicationDate(),
-				application.notes(),
-				application.lastActivityDate());
+				application.getId(),
+				application.getCompany().getName(),
+				application.getRoleTitle(),
+				application.getStatus(),
+				application.getApplicationDate(),
+				application.getNotes(),
+				application.getLastActivityDate());
 	}
 }

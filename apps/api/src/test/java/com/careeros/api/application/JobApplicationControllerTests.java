@@ -7,27 +7,37 @@ import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.jsonPath;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.status;
 
+import com.careeros.api.application.persistence.CompanyRepository;
+import com.careeros.api.application.persistence.JobApplicationRepository;
+import com.careeros.api.application.persistence.JobEventRepository;
+import com.careeros.api.PostgresIntegrationTest;
+import com.jayway.jsonpath.JsonPath;
+
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 import org.springframework.beans.factory.annotation.Autowired;
-import org.springframework.boot.test.context.SpringBootTest;
-import org.springframework.boot.webmvc.test.autoconfigure.AutoConfigureMockMvc;
 import org.springframework.http.MediaType;
 import org.springframework.test.web.servlet.MockMvc;
 
-@SpringBootTest
-@AutoConfigureMockMvc
-class JobApplicationControllerTests {
+class JobApplicationControllerTests extends PostgresIntegrationTest {
 
 	@Autowired
 	private MockMvc mockMvc;
 
 	@Autowired
-	private InMemoryJobApplicationRepository repository;
+	private CompanyRepository companyRepository;
+
+	@Autowired
+	private JobApplicationRepository applicationRepository;
+
+	@Autowired
+	private JobEventRepository eventRepository;
 
 	@BeforeEach
-	void resetRepository() {
-		repository.clear();
+	void clearDatabase() {
+		eventRepository.deleteAll();
+		applicationRepository.deleteAll();
+		companyRepository.deleteAll();
 	}
 
 	@Test
@@ -53,8 +63,8 @@ class JobApplicationControllerTests {
 						.contentType(MediaType.APPLICATION_JSON)
 						.content(requestBody))
 				.andExpect(status().isCreated())
-				.andExpect(header().string("Location", "/api/v1/applications/1"))
-				.andExpect(jsonPath("$.id").value(1))
+				.andExpect(header().exists("Location"))
+				.andExpect(jsonPath("$.id").isNumber())
 				.andExpect(jsonPath("$.companyName").value("Acme Ltd"))
 				.andExpect(jsonPath("$.roleTitle").value("Software Engineer"))
 				.andExpect(jsonPath("$.status").value("APPLIED"))
@@ -96,18 +106,18 @@ class JobApplicationControllerTests {
 
 	@Test
 	void getsAnApplicationById() throws Exception {
-		createApplication();
+		long id = createApplication();
 
-		mockMvc.perform(get("/api/v1/applications/1"))
+		mockMvc.perform(get("/api/v1/applications/{id}", id))
 				.andExpect(status().isOk())
-				.andExpect(jsonPath("$.id").value(1))
+				.andExpect(jsonPath("$.id").value(id))
 				.andExpect(jsonPath("$.companyName").value("Acme Ltd"))
 				.andExpect(jsonPath("$.roleTitle").value("Software Engineer"));
 	}
 
 	@Test
 	void updatesStatusAndNotes() throws Exception {
-		createApplication();
+		long id = createApplication();
 		String requestBody = """
 				{
 				  "status": "INTERVIEWING",
@@ -115,7 +125,7 @@ class JobApplicationControllerTests {
 				}
 				""";
 
-		mockMvc.perform(patch("/api/v1/applications/1")
+		mockMvc.perform(patch("/api/v1/applications/{id}", id)
 						.contentType(MediaType.APPLICATION_JSON)
 						.content(requestBody))
 				.andExpect(status().isOk())
@@ -150,16 +160,16 @@ class JobApplicationControllerTests {
 
 	@Test
 	void rejectsAnUpdateWithoutAStatus() throws Exception {
-		createApplication();
+		long id = createApplication();
 
-		mockMvc.perform(patch("/api/v1/applications/1")
+		mockMvc.perform(patch("/api/v1/applications/{id}", id)
 						.contentType(MediaType.APPLICATION_JSON)
 						.content("{\"notes\":\"First interview booked.\"}"))
 				.andExpect(status().isBadRequest())
 				.andExpect(jsonPath("$.fieldErrors.status").value("Status is required"));
 	}
 
-	private void createApplication() throws Exception {
+	private long createApplication() throws Exception {
 		String requestBody = """
 				{
 				  "companyName": "Acme Ltd",
@@ -170,9 +180,14 @@ class JobApplicationControllerTests {
 				}
 				""";
 
-		mockMvc.perform(post("/api/v1/applications")
+		String responseBody = mockMvc.perform(post("/api/v1/applications")
 						.contentType(MediaType.APPLICATION_JSON)
 						.content(requestBody))
-				.andExpect(status().isCreated());
+				.andExpect(status().isCreated())
+				.andReturn()
+				.getResponse()
+				.getContentAsString();
+
+		return ((Number) JsonPath.read(responseBody, "$.id")).longValue();
 	}
 }
