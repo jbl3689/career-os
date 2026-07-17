@@ -1,10 +1,13 @@
 package com.careeros.api.auth;
 
-import org.springframework.beans.factory.annotation.Value;
+import com.careeros.api.auth.google.GmailAuthorizationRequestResolver;
+import com.careeros.api.auth.google.GmailConnectionAuthenticationSuccessHandler;
+
 import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;
 import org.springframework.http.HttpStatus;
 import org.springframework.security.config.annotation.web.builders.HttpSecurity;
+import org.springframework.security.oauth2.client.registration.ClientRegistrationRepository;
 import org.springframework.security.web.SecurityFilterChain;
 import org.springframework.security.web.authentication.HttpStatusEntryPoint;
 import org.springframework.security.web.authentication.logout.HttpStatusReturningLogoutSuccessHandler;
@@ -17,7 +20,8 @@ public class SecurityConfig {
 	@Bean
 	SecurityFilterChain securityFilterChain(
 			HttpSecurity http,
-			@Value("${career-os.frontend-url}") String frontendUrl) throws Exception {
+			GmailAuthorizationRequestResolver authorizationRequestResolver,
+			GmailConnectionAuthenticationSuccessHandler authenticationSuccessHandler) throws Exception {
 		CookieCsrfTokenRepository csrfTokenRepository = CookieCsrfTokenRepository.withHttpOnlyFalse();
 
 		http
@@ -25,14 +29,17 @@ public class SecurityConfig {
 						.requestMatchers(
 								"/api/v1/health",
 								"/api/v1/auth/csrf",
-								"/oauth2/**",
+								"/oauth2/authorization/google",
 								"/login/**",
 								"/error")
 						.permitAll()
 						.anyRequest()
 						.authenticated())
 				.csrf(csrf -> csrf.csrfTokenRepository(csrfTokenRepository))
-				.oauth2Login(oauth -> oauth.defaultSuccessUrl(frontendUrl + "/applications", true))
+				.oauth2Login(oauth -> oauth
+						.authorizationEndpoint(endpoint -> endpoint
+								.authorizationRequestResolver(authorizationRequestResolver))
+						.successHandler(authenticationSuccessHandler))
 				.logout(logout -> logout
 						.logoutUrl("/api/v1/auth/logout")
 						.deleteCookies("JSESSIONID")
@@ -43,5 +50,11 @@ public class SecurityConfig {
 						PathPatternRequestMatcher.pathPattern("/api/**")));
 
 		return http.build();
+	}
+
+	@Bean
+	GmailAuthorizationRequestResolver authorizationRequestResolver(
+			ClientRegistrationRepository registrations) {
+		return new GmailAuthorizationRequestResolver(registrations);
 	}
 }

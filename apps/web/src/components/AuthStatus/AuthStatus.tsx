@@ -5,6 +5,7 @@ import { ApiRequestError } from "@/lib/api-client";
 import { applicationQueryKeys } from "@/lib/application-query-keys";
 import { getCurrentUser, logout } from "@/lib/auth-api";
 import { authQueryKeys } from "@/lib/auth-query-keys";
+import { googleConnectionQueryKeys } from "@/lib/google-connection-query-keys";
 
 export function AuthStatus() {
   const queryClient = useQueryClient();
@@ -17,6 +18,7 @@ export function AuthStatus() {
     mutationFn: logout,
     onSuccess: () => {
       queryClient.removeQueries({ queryKey: applicationQueryKeys.all });
+      queryClient.removeQueries({ queryKey: googleConnectionQueryKeys.connection });
       queryClient.setQueryData(authQueryKeys.currentUser, null);
     },
   });

@@ -52,9 +52,11 @@ Stages 0, 1, and 2 are complete. The current goal is:
 - complete: user schema and ownership migration;
 - complete: basic Google sign-in using identity scopes only;
 - complete: authenticated API session, CSRF protection, and frontend state;
-- pending: developer verifies the real Google sign-in flow locally;
-- pending: separate Gmail connection and encrypted token storage;
-- pending: disconnect flow, tests, and final troubleshooting documentation.
+- complete: developer verified the real Google sign-in flow locally;
+- complete: separate Gmail connection and encrypted token storage;
+- complete: disconnect flow, focused tests, and final troubleshooting documentation;
+- pending: developer completes the Google Cloud Gmail setup and verifies the
+  connect/restart/disconnect flow locally.
 
 Do not read, classify, or import Gmail messages in this stage. Do not add Google
 Calendar or AI code.
@@ -240,7 +242,8 @@ Do not begin the next stage without an explicit request.
 
 ## Immediate next task
 
-Ask the developer to load the private Google client values using the README and
-verify the identity-only sign-in flow locally. Fix any configuration issue
-before starting the separate Gmail connection and encrypted-token slice. Do not
-request a Gmail scope yet.
+Ask the developer to follow the Gmail-specific steps in
+`docs/google-auth-setup.md`, load `TOKEN_ENCRYPTION_KEY`, and verify the
+connect/restart/disconnect flow locally. Fix any configuration issue, then stop
+for a Stage 3 review. Do not scan Gmail or begin Stage 4 without explicit
+approval.

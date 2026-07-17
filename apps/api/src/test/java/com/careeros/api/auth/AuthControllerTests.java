@@ -1,10 +1,12 @@
 package com.careeros.api.auth;
 
 import static org.assertj.core.api.Assertions.assertThat;
+import static org.hamcrest.Matchers.containsString;
 import static org.springframework.security.test.web.servlet.request.SecurityMockMvcRequestPostProcessors.csrf;
 import static org.springframework.security.test.web.servlet.request.SecurityMockMvcRequestPostProcessors.oidcLogin;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.get;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.post;
+import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.header;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.jsonPath;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.status;
 
@@ -89,5 +91,19 @@ class AuthControllerTests extends PostgresIntegrationTest {
 	void rejectsSignOutWithoutACsrfToken() throws Exception {
 		mockMvc.perform(post("/api/v1/auth/logout").with(oidcLogin()))
 				.andExpect(status().isForbidden());
+	}
+
+	@Test
+	void startsGmailAuthorizationSeparatelyWithOfflineAccess() throws Exception {
+		mockMvc.perform(get("/oauth2/authorization/google-gmail")
+						.with(oidcLogin().idToken(token -> token
+								.subject("google-subject")
+								.claim("email", "developer@example.com"))))
+				.andExpect(status().is3xxRedirection())
+				.andExpect(header().string("Location", containsString("access_type=offline")))
+				.andExpect(header().string("Location", containsString("prompt=consent")))
+				.andExpect(header().string(
+						"Location",
+						containsString("gmail.readonly")));
 	}
 }

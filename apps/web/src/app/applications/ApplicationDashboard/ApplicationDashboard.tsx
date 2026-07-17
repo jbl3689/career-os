@@ -3,6 +3,7 @@
 import { useQuery } from "@tanstack/react-query";
 import { applicationQueryKeys } from "@/lib/application-query-keys";
 import { listApplications } from "@/lib/applications-api";
+import { GoogleConnectionPanel } from "@/components/GoogleConnectionPanel";
 import { ApplicationList } from "./components/ApplicationList";
 import { CreateApplicationForm } from "./components/CreateApplicationForm";
 
@@ -25,6 +26,8 @@ export function ApplicationDashboard() {
           Keep a simple record of the roles you are pursuing.
         </p>
       </header>
+
+      <GoogleConnectionPanel />
 
       <div className="mt-8 grid gap-8 lg:grid-cols-[minmax(0,1fr)_22rem]">
         <ApplicationList

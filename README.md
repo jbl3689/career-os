@@ -130,11 +130,17 @@ Open `.env.local` and fill in these private values:
 ```text
 GOOGLE_CLIENT_ID=your client ID
 GOOGLE_CLIENT_SECRET=your client secret
+TOKEN_ENCRYPTION_KEY=a Base64-encoded 32-byte key
 ```
 
-Do not commit `.env.local`; Git already ignores it. Then open two terminals from
-the repository root. Start the API after loading the local values into that
-terminal:
+Generate the encryption key once with `openssl rand -base64 32`. Before testing
+Gmail connection, also enable the Gmail API, add `gmail.readonly`, and add the
+second callback URI by following `docs/google-auth-setup.md`.
+
+Do not commit `.env.local`; Git already ignores it. Keep the encryption key
+stable: changing it means existing Gmail connections must be recreated. Then
+open two terminals from the repository root. Start the API after loading the
+local values into that terminal:
 
 ```bash
 cd apps/api
@@ -164,6 +170,8 @@ create `apps/web/.env.local`, set `API_BASE_URL`, and restart Next.js.
 From the application tracker you can:
 
 - sign in and out with Google;
+- separately connect and disconnect the same Google account for future
+  read-only Gmail access;
 - create an application;
 - view all applications;
 - select an application to see its details;
@@ -221,10 +229,17 @@ Migration `V2__add_users_and_application_ownership.sql` adds:
 - a required `user_id` on every job application, preventing applications from
   being shared across user accounts.
 
+Migration `V3__add_google_connections.sql` adds:
+
+- `google_connections`, with one optional connection per Career OS user;
+- the connected Gmail address and exact granted scopes;
+- an AES-256-GCM encrypted refresh token, never the plaintext token.
+
 The relationships are:
 
 ```text
 users     1 ─── many job_applications 1 ─── many job_events
+users     1 ─── zero-or-one google_connections
 companies 1 ─── many job_applications
 ```
 
@@ -242,11 +257,13 @@ Then use these `psql` commands:
 \d companies
 \d job_applications
 \d job_events
+\d google_connections
 SELECT * FROM flyway_schema_history;
 SELECT id, email, display_name FROM users;
 SELECT * FROM companies;
 SELECT * FROM job_applications;
 SELECT * FROM job_events ORDER BY event_date, id;
+SELECT user_id, gmail_address, granted_scopes FROM google_connections;
 \q
 ```
 
@@ -268,6 +285,11 @@ http://localhost:3000/applications for normal local testing.
 
 `GET /api/v1/auth/me` returns the current Career OS user. `POST
 /api/v1/auth/logout` invalidates the server-side session.
+
+`GET /api/v1/google-connection` reports whether Gmail is connected without
+returning token data. `DELETE /api/v1/google-connection` revokes Google's grant
+and deletes the encrypted local token. Connecting begins at
+`/oauth2/authorization/google-gmail` and is intentionally separate from sign-in.
 
 Supported statuses are `APPLIED`, `INTERVIEWING`, `OFFER`, `REJECTED`, and
 `WITHDRAWN`. Company name, role title, status, and application date are required.
@@ -342,4 +364,11 @@ You can also verify a production frontend build with `npm run build`.
   resolved, load the ignored `.env.local` values in the API terminal before
   starting Spring Boot.
 - If Google reports `redirect_uri_mismatch`, confirm the OAuth client's exact
-  redirect is `http://localhost:8080/login/oauth2/code/google`.
+  redirects are `http://localhost:8080/login/oauth2/code/google` and
+  `http://localhost:8080/login/oauth2/code/google-gmail`.
+- If startup reports that `TOKEN_ENCRYPTION_KEY` cannot be resolved, generate
+  one with `openssl rand -base64 32`, add it to `.env.local`, reload that file
+  in the API terminal, and restart Spring Boot.
+- In Google Auth Platform Testing mode, Gmail authorizations and refresh tokens
+  expire after seven days. Reconnect during development; this does not happen
+  to identity-only sign-in.
