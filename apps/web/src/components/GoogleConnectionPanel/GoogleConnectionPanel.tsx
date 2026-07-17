@@ -6,6 +6,8 @@ import {
   getGoogleConnection,
 } from "@/lib/google-connection-api";
 import { googleConnectionQueryKeys } from "@/lib/google-connection-query-keys";
+import { scanGmail } from "@/lib/gmail-api";
+import { GmailScanResults } from "./components/GmailScanResults";
 
 export function GoogleConnectionPanel() {
   const queryClient = useQueryClient();
@@ -14,9 +16,13 @@ export function GoogleConnectionPanel() {
     queryFn: getGoogleConnection,
     retry: false,
   });
+  const scanMutation = useMutation({
+    mutationFn: scanGmail,
+  });
   const disconnectMutation = useMutation({
     mutationFn: disconnectGoogleConnection,
     onSuccess: () => {
+      scanMutation.reset();
       queryClient.setQueryData(googleConnectionQueryKeys.connection, {
         connected: false,
         gmailAddress: null,
@@ -53,24 +59,37 @@ export function GoogleConnectionPanel() {
           ) : (
             <p className="mt-1 text-sm text-slate-600">
               Optional. Connect the same Google account to allow read-only Gmail
-              access in the next stage.
+              access during manual scans.
             </p>
           )}
         </div>
 
-        {!connectionQuery.isPending &&
-          !connectionQuery.isError &&
-          (connectionQuery.data.connected ? (
-            <button
-              type="button"
-              className="self-start rounded-md border border-slate-300 px-4 py-2 text-sm font-medium text-slate-700 hover:bg-slate-50 disabled:text-slate-400 sm:self-auto"
-              disabled={disconnectMutation.isPending}
-              onClick={() => disconnectMutation.mutate()}
-            >
-              {disconnectMutation.isPending
-                ? "Disconnecting…"
-                : "Disconnect Gmail"}
-            </button>
+        {!connectionQuery.isPending && !connectionQuery.isError ? (
+          connectionQuery.data.connected ? (
+            <div className="flex flex-wrap gap-3">
+              <button
+                type="button"
+                className="rounded-md bg-sky-700 px-4 py-2 text-sm font-medium text-white hover:bg-sky-800 disabled:bg-slate-400"
+                disabled={
+                  scanMutation.isPending || disconnectMutation.isPending
+                }
+                onClick={() => scanMutation.mutate()}
+              >
+                {scanMutation.isPending ? "Scanning…" : "Scan Gmail"}
+              </button>
+              <button
+                type="button"
+                className="rounded-md border border-slate-300 px-4 py-2 text-sm font-medium text-slate-700 hover:bg-slate-50 disabled:text-slate-400"
+                disabled={
+                  disconnectMutation.isPending || scanMutation.isPending
+                }
+                onClick={() => disconnectMutation.mutate()}
+              >
+                {disconnectMutation.isPending
+                  ? "Disconnecting…"
+                  : "Disconnect Gmail"}
+              </button>
+            </div>
           ) : (
             <a
               href="/oauth2/authorization/google-gmail"
@@ -78,8 +97,21 @@ export function GoogleConnectionPanel() {
             >
               Connect Gmail
             </a>
-          ))}
+          )
+        ) : null}
       </div>
+
+      {scanMutation.isError ? (
+        <p className="mt-3 text-sm text-red-700">
+          {scanMutation.error instanceof Error
+            ? scanMutation.error.message
+            : "Gmail could not be scanned. Please try again."}
+        </p>
+      ) : null}
+
+      {scanMutation.data ? (
+        <GmailScanResults candidates={scanMutation.data.candidates} />
+      ) : null}
 
       {disconnectMutation.isError ? (
         <p className="mt-3 text-sm text-red-700">

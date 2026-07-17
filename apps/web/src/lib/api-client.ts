@@ -66,7 +66,7 @@ export async function apiRequest<T>(
       ...(csrfToken ? { "X-XSRF-TOKEN": csrfToken } : {}),
       ...options?.headers,
     },
-    signal: AbortSignal.timeout(5_000),
+    signal: options?.signal ?? AbortSignal.timeout(5_000),
   });
 
   if (!response.ok) {

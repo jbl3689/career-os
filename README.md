@@ -1,8 +1,8 @@
 # Career OS
 
 Career OS is a learning-led career assistant. The manual job tracker is durable
-with PostgreSQL, and Stage 3 is adding Google authentication in small, secure
-slices.
+with PostgreSQL, Google authentication and Gmail connection are complete, and
+Stage 4 is adding user-triggered Gmail scanning in small, reviewable slices.
 
 ## Requirements
 
@@ -172,6 +172,7 @@ From the application tracker you can:
 - sign in and out with Google;
 - separately connect and disconnect the same Google account for future
   read-only Gmail access;
+- manually scan a capped recent window and inspect candidate message metadata;
 - create an application;
 - view all applications;
 - select an application to see its details;
@@ -291,6 +292,26 @@ returning token data. `DELETE /api/v1/google-connection` revokes Google's grant
 and deletes the encrypted local token. Connecting begins at
 `/oauth2/authorization/google-gmail` and is intentionally separate from sign-in.
 
+`POST /api/v1/gmail/scan` starts the first Stage 4 manual scan slice. It:
+
+1. decrypts the current user's refresh token inside the API;
+2. exchanges it with Google for a short-lived access token;
+3. searches at most 10 messages from the last year using a small set of
+   job-related terms;
+4. retrieves only the Gmail message ID, thread ID, sender, subject, and received
+   time;
+5. returns those temporary candidates to the frontend.
+
+The current slice deliberately does not store messages, retrieve email bodies,
+classify results, match applications, or change any application data. Refreshing
+the page clears the displayed candidates. This gives us real examples for
+tuning deterministic rules before a Flyway schema makes the result durable.
+
+Google's `messages.list` endpoint initially returns only message and thread IDs,
+so the API follows each capped result with a `messages.get` request using
+`format=metadata`. The cap avoids downloading large sections of an inbox while
+the search rules are still experimental.
+
 Supported statuses are `APPLIED`, `INTERVIEWING`, `OFFER`, `REJECTED`, and
 `WITHDRAWN`. Company name, role title, status, and application date are required.
 The create endpoint returns `201 Created`; invalid requests return `400 Bad
@@ -372,3 +393,6 @@ You can also verify a production frontend build with `npm run build`.
 - In Google Auth Platform Testing mode, Gmail authorizations and refresh tokens
   expire after seven days. Reconnect during development; this does not happen
   to identity-only sign-in.
+- If a manual scan reports that Gmail access expired, use **Disconnect Gmail**,
+  connect it again, and retry. Testing-mode expiry and manual revocation both
+  invalidate the stored refresh token.

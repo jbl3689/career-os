@@ -4,6 +4,7 @@ import {
   disconnectGoogleConnection,
   getGoogleConnection,
 } from "@/lib/google-connection-api";
+import { scanGmail } from "@/lib/gmail-api";
 import { renderWithQuery } from "@/test/render-with-query";
 import { GoogleConnectionPanel } from "./GoogleConnectionPanel";
 
@@ -12,10 +13,15 @@ vi.mock("@/lib/google-connection-api", () => ({
   disconnectGoogleConnection: vi.fn(),
 }));
 
+vi.mock("@/lib/gmail-api", () => ({
+  scanGmail: vi.fn(),
+}));
+
 describe("GoogleConnectionPanel", () => {
   beforeEach(() => {
     vi.mocked(getGoogleConnection).mockReset();
     vi.mocked(disconnectGoogleConnection).mockReset();
+    vi.mocked(scanGmail).mockReset();
   });
 
   it("offers a separate Gmail connection when Gmail is not connected", async () => {
@@ -56,5 +62,42 @@ describe("GoogleConnectionPanel", () => {
       expect(disconnectGoogleConnection).toHaveBeenCalledOnce();
     });
     expect(await screen.findByRole("link", { name: "Connect Gmail" })).toBeDefined();
+  });
+
+  it("manually scans Gmail and shows temporary candidate metadata", async () => {
+    vi.mocked(getGoogleConnection).mockResolvedValue({
+      connected: true,
+      gmailAddress: "developer@example.com",
+      connectedAt: "2026-07-20T10:00:00Z",
+    });
+    vi.mocked(scanGmail).mockResolvedValue({
+      scannedAt: "2026-07-20T10:05:00Z",
+      candidatesFound: 1,
+      candidates: [
+        {
+          gmailMessageId: "message-1",
+          gmailThreadId: "thread-1",
+          sender: "Recruiter <recruiter@example.com>",
+          subject: "Interview invitation",
+          receivedAt: "2026-07-19T14:30:00Z",
+        },
+      ],
+    });
+
+    renderWithQuery(<GoogleConnectionPanel />);
+
+    fireEvent.click(
+      await screen.findByRole("button", { name: "Scan Gmail" }),
+    );
+
+    expect(await screen.findByText("Interview invitation")).toBeDefined();
+    expect(
+      screen.getByText("Recruiter <recruiter@example.com>"),
+    ).toBeDefined();
+    expect(
+      screen.getByText(
+        "These results are not stored and have not changed any applications.",
+      ),
+    ).toBeDefined();
   });
 });

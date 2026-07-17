@@ -36,6 +36,15 @@ public class GoogleConnectionService {
 				.orElseGet(GoogleConnectionResponse::disconnected);
 	}
 
+	@Transactional(readOnly = true)
+	public String requireRefreshToken(UserEntity user) {
+		GoogleConnectionEntity connection = connectionRepository.findByUserId(user.getId())
+				.orElseThrow(GmailConnectionRequiredException::new);
+		return tokenEncryptionService.decrypt(
+				connection.getEncryptedRefreshToken(),
+				user.getId());
+	}
+
 	@Transactional
 	public void connect(
 			UserEntity user,

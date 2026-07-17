@@ -26,65 +26,45 @@ When a task is ambiguous, prefer the simpler implementation that preserves a pat
 
 ## Current stage
 
-**Stage 3: Google authentication**
+**Stage 4: Manual Gmail scan**
 
-Stages 0, 1, and 2 are complete. The current goal is:
+Stages 0, 1, 2, and 3 are complete. The current goal is:
 
-> Let a user sign in with Google and optionally connect Gmail without exposing
-> Google credentials to the browser or scanning any email yet.
+> Let a user deliberately scan Gmail for likely job-related messages, review
+> deterministic results, and avoid processing the same message twice.
 
-### Stage 3 deliverables
+### Stage 4 deliverables
 
-- Google Cloud project setup documentation;
-- OAuth consent screen configuration;
-- Spring Security OAuth2 client setup;
-- persisted Career OS users;
-- server-side user session handling;
-- encrypted refresh-token storage;
-- separate connect and disconnect Gmail controls;
-- authentication tests and troubleshooting documentation.
+- a user-triggered Gmail scan;
+- a deliberately limited Gmail search query;
+- retrieval of only required message data;
+- deterministic rule-based classification;
+- matching to an existing application or proposing a new one;
+- a review flow for uncertain results;
+- idempotent processing;
+- visible scan status and errors.
 
-### Stage 3 progress
+### Stage 4 progress
 
-- complete: minimal user, session, and Google-connection design;
-- complete: current Google Auth Platform local-setup documentation;
-- complete: developer created the development Google Cloud project and OAuth client;
-- complete: user schema and ownership migration;
-- complete: basic Google sign-in using identity scopes only;
-- complete: authenticated API session, CSRF protection, and frontend state;
-- complete: developer verified the real Google sign-in flow locally;
-- complete: separate Gmail connection and encrypted token storage;
-- complete: disconnect flow, focused tests, and final troubleshooting documentation;
-- pending: developer completes the Google Cloud Gmail setup and verifies the
-  connect/restart/disconnect flow locally.
+- complete: manual scan foundation using token refresh, a capped recent
+  Gmail search, and minimal candidate metadata;
+- pending: persisted email-message and scan-result schema;
+- pending: deterministic classification;
+- pending: application matching and proposed-application review;
+- pending: idempotent re-scan handling;
+- pending: final Stage 4 tests and documentation review.
 
-Do not read, classify, or import Gmail messages in this stage. Do not add Google
-Calendar or AI code.
+Do not schedule scans or add Gmail push notifications in this stage. Do not add
+Google Calendar, an LLM, or AI classification.
 
-When Stage 3 is complete, stop and request a review. Do not automatically begin
-Stage 4.
+When Stage 4 is complete, stop and request a review. Do not automatically begin
+Stage 5.
 
 ---
 
 ## Later stages
 
 These stages are planned but must not be started early.
-
-### Stage 4: Manual Gmail scan
-
-Start only after Google authentication works.
-
-Goal:
-
-- add a user-triggered Gmail scan;
-- search for likely job-related messages;
-- retrieve only required message data;
-- classify messages using deterministic rules;
-- attach messages to existing applications or propose new applications;
-- provide a review flow for uncertain detections;
-- prevent duplicate processing.
-
-Do not introduce an LLM in this stage.
 
 ### Stage 5: Incremental synchronisation
 
@@ -242,8 +222,6 @@ Do not begin the next stage without an explicit request.
 
 ## Immediate next task
 
-Ask the developer to follow the Gmail-specific steps in
-`docs/google-auth-setup.md`, load `TOKEN_ENCRYPTION_KEY`, and verify the
-connect/restart/disconnect flow locally. Fix any configuration issue, then stop
-for a Stage 3 review. Do not scan Gmail or begin Stage 4 without explicit
-approval.
+Review real candidate results from the read-only scan, then add the smallest
+persisted email-message and scan-result schema needed for idempotent
+classification. Do not automatically create or update applications yet.
