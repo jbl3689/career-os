@@ -26,70 +26,47 @@ When a task is ambiguous, prefer the simpler implementation that preserves a pat
 
 ## Current stage
 
-**Stage 2: PostgreSQL persistence**
+**Stage 3: Google authentication**
 
-Stages 0 and 1 are complete. The current goal is:
+Stages 0, 1, and 2 are complete. The current goal is:
 
-> Replace temporary in-memory storage with PostgreSQL while preserving the
-> existing manual job-tracker behaviour and API shape.
+> Let a user sign in with Google and optionally connect Gmail without exposing
+> Google credentials to the browser or scanning any email yet.
 
-### Stage 2 deliverables
+### Stage 3 deliverables
 
-- PostgreSQL through Docker Compose;
-- Spring Data JPA and the PostgreSQL JDBC driver;
-- Flyway migrations as the source of truth for the database schema;
-- persisted companies, job applications, and job events;
-- integration tests using PostgreSQL through Testcontainers;
-- plain-language database startup, inspection, reset, and troubleshooting documentation.
+- Google Cloud project setup documentation;
+- OAuth consent screen configuration;
+- Spring Security OAuth2 client setup;
+- persisted Career OS users;
+- server-side user session handling;
+- encrypted refresh-token storage;
+- separate connect and disconnect Gmail controls;
+- authentication tests and troubleshooting documentation.
 
-### Stage 2 progress
+### Stage 3 progress
 
-- complete: local PostgreSQL container and initial Docker Compose documentation;
-- complete: Spring Boot database connection and persistence dependencies;
-- complete: initial Flyway schema migration;
-- complete: JPA entities;
-- complete: Spring Data JPA repositories;
-- complete: replacement of in-memory application storage;
-- complete: persisted job events;
-- complete: PostgreSQL integration tests;
-- complete: final setup, reset, inspection, and troubleshooting documentation.
+- complete: minimal user, session, and Google-connection design;
+- complete: current Google Auth Platform local-setup documentation;
+- complete: developer created the development Google Cloud project and OAuth client;
+- complete: user schema and ownership migration;
+- complete: basic Google sign-in using identity scopes only;
+- complete: authenticated API session, CSRF protection, and frontend state;
+- pending: developer verifies the real Google sign-in flow locally;
+- pending: separate Gmail connection and encrypted token storage;
+- pending: disconnect flow, tests, and final troubleshooting documentation.
 
-Do not add Google integration, authentication, Gmail processing, or AI code in
-this stage.
+Do not read, classify, or import Gmail messages in this stage. Do not add Google
+Calendar or AI code.
 
-When Stage 2 is complete, stop and request a review. Do not automatically begin
-Stage 3.
+When Stage 3 is complete, stop and request a review. Do not automatically begin
+Stage 4.
 
 ---
 
 ## Later stages
 
 These stages are planned but must not be started early.
-
-### Stage 3: Google authentication
-
-Start only after PostgreSQL-backed manual tracking is stable.
-
-Goal:
-
-- create and configure a Google Cloud project;
-- add Google sign-in;
-- securely store the user and Google connection details;
-- request only the minimum required scopes;
-- support connecting and disconnecting Gmail.
-
-The developer is new to Google Cloud and Google OAuth setup. Provide exact, current setup instructions in project documentation, including:
-
-- where to create the project;
-- which API to enable;
-- how to configure the OAuth consent screen;
-- how to create OAuth credentials;
-- which redirect URI to add;
-- which environment variables are required;
-- how to keep secrets out of Git;
-- common local-development errors.
-
-Do not scan Gmail yet unless the user explicitly moves to Stage 4.
 
 ### Stage 4: Manual Gmail scan
 
@@ -263,5 +240,7 @@ Do not begin the next stage without an explicit request.
 
 ## Immediate next task
 
-Stage 2 is complete. Stop and request a review before moving forward. Do not
-begin Stage 3 without the user's explicit request.
+Ask the developer to load the private Google client values using the README and
+verify the identity-only sign-in flow locally. Fix any configuration issue
+before starting the separate Gmail connection and encrypted-token slice. Do not
+request a Gmail scope yet.

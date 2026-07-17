@@ -15,6 +15,10 @@ const nextConfig: NextConfig = {
         source: "/api/v1/:path*",
         destination: `${apiBaseUrl}/api/v1/:path*`,
       },
+      {
+        source: "/oauth2/:path*",
+        destination: `${apiBaseUrl}/oauth2/:path*`,
+      },
     ];
   },
 };

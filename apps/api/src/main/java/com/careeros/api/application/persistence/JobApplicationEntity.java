@@ -3,6 +3,7 @@ package com.careeros.api.application.persistence;
 import java.time.LocalDate;
 
 import com.careeros.api.application.ApplicationStatus;
+import com.careeros.api.auth.persistence.UserEntity;
 
 import jakarta.persistence.Column;
 import jakarta.persistence.Entity;
@@ -28,6 +29,10 @@ public class JobApplicationEntity {
 	@JoinColumn(name = "company_id", nullable = false)
 	private CompanyEntity company;
 
+	@ManyToOne(fetch = FetchType.LAZY, optional = false)
+	@JoinColumn(name = "user_id", nullable = false)
+	private UserEntity user;
+
 	@Column(name = "role_title", nullable = false, length = 200)
 	private String roleTitle;
 
@@ -48,12 +53,14 @@ public class JobApplicationEntity {
 	}
 
 	public JobApplicationEntity(
+			UserEntity user,
 			CompanyEntity company,
 			String roleTitle,
 			ApplicationStatus status,
 			LocalDate applicationDate,
 			String notes,
 			LocalDate lastActivityDate) {
+		this.user = user;
 		this.company = company;
 		this.roleTitle = roleTitle;
 		this.status = status;
@@ -68,6 +75,10 @@ public class JobApplicationEntity {
 
 	public CompanyEntity getCompany() {
 		return company;
+	}
+
+	public UserEntity getUser() {
+		return user;
 	}
 
 	public String getRoleTitle() {

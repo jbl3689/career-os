@@ -1,4 +1,5 @@
 import { ApplicationDetail } from "./ApplicationDetail";
+import { RequireAuthentication } from "@/components/RequireAuthentication";
 
 export default async function ApplicationDetailPage({
   params,
@@ -7,5 +8,9 @@ export default async function ApplicationDetailPage({
 }) {
   const { id } = await params;
 
-  return <ApplicationDetail applicationId={Number(id)} />;
+  return (
+    <RequireAuthentication>
+      <ApplicationDetail applicationId={Number(id)} />
+    </RequireAuthentication>
+  );
 }

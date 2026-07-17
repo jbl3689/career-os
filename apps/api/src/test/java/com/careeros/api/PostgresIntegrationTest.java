@@ -4,7 +4,10 @@ import org.springframework.boot.test.context.SpringBootTest;
 import org.springframework.boot.webmvc.test.autoconfigure.AutoConfigureMockMvc;
 import org.springframework.context.annotation.Import;
 
-@SpringBootTest
+@SpringBootTest(properties = {
+		"spring.security.oauth2.client.registration.google.client-id=test-client",
+		"spring.security.oauth2.client.registration.google.client-secret=test-secret"
+})
 @AutoConfigureMockMvc
 @Import(IntegrationTestConfiguration.class)
 public abstract class PostgresIntegrationTest {

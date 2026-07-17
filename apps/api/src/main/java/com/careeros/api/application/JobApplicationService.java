@@ -12,6 +12,8 @@ import com.careeros.api.application.persistence.JobApplicationRepository;
 import com.careeros.api.application.persistence.JobEventEntity;
 import com.careeros.api.application.persistence.JobEventRepository;
 import com.careeros.api.application.persistence.JobEventType;
+import com.careeros.api.auth.persistence.UserEntity;
+
 
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
@@ -36,19 +38,20 @@ public class JobApplicationService {
 		this.clock = clock;
 	}
 
-	public List<JobApplicationResponse> listApplications() {
-		return applicationRepository.findAllByOrderByIdAsc().stream()
+	public List<JobApplicationResponse> listApplications(UserEntity user) {
+		return applicationRepository.findAllByUserIdOrderByIdAsc(user.getId()).stream()
 				.map(JobApplicationResponse::from)
 				.toList();
 	}
 
 	@Transactional
-	public JobApplicationResponse createApplication(CreateJobApplicationRequest request) {
+	public JobApplicationResponse createApplication(UserEntity user, CreateJobApplicationRequest request) {
 		String companyName = request.companyName().trim();
 		String notes = request.notes() == null ? "" : request.notes().trim();
 		CompanyEntity company = companyRepository.findByName(companyName)
 				.orElseGet(() -> companyRepository.save(new CompanyEntity(companyName)));
 		JobApplicationEntity application = applicationRepository.save(new JobApplicationEntity(
+				user,
 				company,
 				request.roleTitle().trim(),
 				request.status(),
@@ -64,13 +67,16 @@ public class JobApplicationService {
 		return JobApplicationResponse.from(application);
 	}
 
-	public JobApplicationResponse getApplication(long id) {
-		return JobApplicationResponse.from(findApplication(id));
+	public JobApplicationResponse getApplication(UserEntity user, long id) {
+		return JobApplicationResponse.from(findApplication(user, id));
 	}
 
 	@Transactional
-	public JobApplicationResponse updateApplication(long id, UpdateJobApplicationRequest request) {
-		JobApplicationEntity application = findApplication(id);
+	public JobApplicationResponse updateApplication(
+			UserEntity user,
+			long id,
+			UpdateJobApplicationRequest request) {
+		JobApplicationEntity application = findApplication(user, id);
 		ApplicationStatus previousStatus = application.getStatus();
 		String previousNotes = application.getNotes();
 		String notes = request.notes() == null ? previousNotes : request.notes().trim();
@@ -97,8 +103,8 @@ public class JobApplicationService {
 		return JobApplicationResponse.from(application);
 	}
 
-	private JobApplicationEntity findApplication(long id) {
-		return applicationRepository.findById(id)
+	private JobApplicationEntity findApplication(UserEntity user, long id) {
+		return applicationRepository.findByIdAndUserId(id, user.getId())
 				.orElseThrow(() -> new JobApplicationNotFoundException(id));
 	}
 }

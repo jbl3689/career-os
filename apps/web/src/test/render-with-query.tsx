@@ -10,7 +10,9 @@ export function renderWithQuery(ui: ReactElement) {
     },
   });
 
-  return render(
+  const renderResult = render(
     <QueryClientProvider client={queryClient}>{ui}</QueryClientProvider>,
   );
+
+  return { ...renderResult, queryClient };
 }

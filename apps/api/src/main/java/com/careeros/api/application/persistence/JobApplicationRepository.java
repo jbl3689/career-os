@@ -8,10 +8,9 @@ import org.springframework.data.jpa.repository.JpaRepository;
 
 public interface JobApplicationRepository extends JpaRepository<JobApplicationEntity, Long> {
 
-	@EntityGraph(attributePaths = "company")
-	List<JobApplicationEntity> findAllByOrderByIdAsc();
+	@EntityGraph(attributePaths = {"company", "user"})
+	List<JobApplicationEntity> findAllByUserIdOrderByIdAsc(long userId);
 
-	@Override
-	@EntityGraph(attributePaths = "company")
-	Optional<JobApplicationEntity> findById(Long id);
+	@EntityGraph(attributePaths = {"company", "user"})
+	Optional<JobApplicationEntity> findByIdAndUserId(long id, long userId);
 }

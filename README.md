@@ -1,7 +1,8 @@
 # Career OS
 
-Career OS is a learning-led career assistant. Stage 2 is making the existing
-manual job application tracker durable with PostgreSQL.
+Career OS is a learning-led career assistant. The manual job tracker is durable
+with PostgreSQL, and Stage 3 is adding Google authentication in small, secure
+slices.
 
 ## Requirements
 
@@ -12,8 +13,11 @@ manual job application tracker durable with PostgreSQL.
 
 A system Maven installation is not required; the backend includes the Maven
 Wrapper. PostgreSQL runs inside Docker, so a separate PostgreSQL installation is
-not required. Authentication, Gmail, and AI are intentionally not part of this
-stage.
+not required. Gmail scanning and AI are intentionally not part of this stage.
+
+Before implementing Google sign-in, follow the development-project walkthrough
+in [`docs/google-auth-setup.md`](docs/google-auth-setup.md). Do not put the
+generated Google client secret in a tracked file.
 
 Check your installed versions:
 
@@ -112,13 +116,31 @@ Maven Wrapper runs.
 
 ## Run locally
 
-Start PostgreSQL first, then open two terminals from the repository root for the
-API and frontend.
+Start PostgreSQL first. The API now requires the Google OAuth client credentials
+created in `docs/google-auth-setup.md`.
 
-Start the API:
+Create an ignored local environment file from the repository root:
+
+```bash
+cp .env.example .env.local
+```
+
+Open `.env.local` and fill in these private values:
+
+```text
+GOOGLE_CLIENT_ID=your client ID
+GOOGLE_CLIENT_SECRET=your client secret
+```
+
+Do not commit `.env.local`; Git already ignores it. Then open two terminals from
+the repository root. Start the API after loading the local values into that
+terminal:
 
 ```bash
 cd apps/api
+set -a
+source ../../.env.local
+set +a
 ./mvnw spring-boot:run
 ```
 
@@ -135,12 +157,13 @@ Then open:
 - API health endpoint: http://localhost:8080/api/v1/health
 
 The frontend uses `http://localhost:8080` by default. Next.js proxies browser
-requests under `/api/v1` to the Spring Boot API, so local development does not
-need separate CORS configuration. To use another API URL, copy `.env.example`
-to `apps/web/.env.local`, change `API_BASE_URL`, and restart Next.js.
+requests under `/api/v1` and the Google login-start path to Spring Boot, so local
+development does not need separate CORS configuration. To use another API URL,
+create `apps/web/.env.local`, set `API_BASE_URL`, and restart Next.js.
 
 From the application tracker you can:
 
+- sign in and out with Google;
 - create an application;
 - view all applications;
 - select an application to see its details;
@@ -178,7 +201,7 @@ HTTP controller -> application service -> Spring Data repository -> PostgreSQL
 Creating an application also stores an `APPLICATION_CREATED` event. An update
 stores `STATUS_CHANGED` and/or `NOTES_UPDATED` events only when the corresponding
 value actually changes. Timeline events are persisted for later product work;
-they are not exposed in the Stage 2 UI yet.
+they are not exposed in the UI yet.
 
 ### Current database schema
 
@@ -191,10 +214,18 @@ Flyway migration `V1__create_initial_schema.sql` creates:
   key pointing to `job_applications`;
 - `flyway_schema_history`, managed by Flyway to record applied migrations.
 
+Migration `V2__add_users_and_application_ownership.sql` adds:
+
+- `users`, containing the Career OS account identified by Google's stable
+  subject identifier;
+- a required `user_id` on every job application, preventing applications from
+  being shared across user accounts.
+
 The relationships are:
 
 ```text
-companies 1 ─── many job_applications 1 ─── many job_events
+users     1 ─── many job_applications 1 ─── many job_events
+companies 1 ─── many job_applications
 ```
 
 Inspect the tables from the repository root:
@@ -207,10 +238,12 @@ Then use these `psql` commands:
 
 ```text
 \dt
+\d users
 \d companies
 \d job_applications
 \d job_events
 SELECT * FROM flyway_schema_history;
+SELECT id, email, display_name FROM users;
 SELECT * FROM companies;
 SELECT * FROM job_applications;
 SELECT * FROM job_events ORDER BY event_date, id;
@@ -220,49 +253,21 @@ SELECT * FROM job_events ORDER BY event_date, id;
 The matching Java classes live in the application feature's `persistence`
 package. They are named `CompanyEntity`, `JobApplicationEntity`, and
 `JobEventEntity` to distinguish database mappings from API and domain records.
+The user mapping lives in the authentication feature's persistence package.
 
 Do not edit an applied Flyway migration. Future schema changes must be added as
-new files such as `V2__describe_the_change.sql`, preserving a repeatable schema
+new files such as `V3__describe_the_change.sql`, preserving a repeatable schema
 history for every environment.
 
 ## Current backend API
 
-List applications:
+All `/api/v1/applications` endpoints require an authenticated Career OS
+session. Unauthenticated requests return `401 Unauthorized`, and requests that
+change data also require a CSRF token. The frontend handles both, so use
+http://localhost:3000/applications for normal local testing.
 
-```bash
-curl http://localhost:8080/api/v1/applications
-```
-
-Create an application:
-
-```bash
-curl -X POST http://localhost:8080/api/v1/applications \
-  -H 'Content-Type: application/json' \
-  -d '{
-    "companyName": "Acme Ltd",
-    "roleTitle": "Software Engineer",
-    "status": "APPLIED",
-    "applicationDate": "2026-07-16",
-    "notes": "Applied through the company website."
-  }'
-```
-
-Fetch an application, replacing `1` with the ID returned by the create request:
-
-```bash
-curl http://localhost:8080/api/v1/applications/1
-```
-
-Update its status and notes:
-
-```bash
-curl -X PATCH http://localhost:8080/api/v1/applications/1 \
-  -H 'Content-Type: application/json' \
-  -d '{
-    "status": "INTERVIEWING",
-    "notes": "First interview booked."
-  }'
-```
+`GET /api/v1/auth/me` returns the current Career OS user. `POST
+/api/v1/auth/logout` invalidates the server-side session.
 
 Supported statuses are `APPLIED`, `INTERVIEWING`, `OFFER`, `REJECTED`, and
 `WITHDRAWN`. Company name, role title, status, and application date are required.
@@ -322,7 +327,7 @@ You can also verify a production frontend build with `npm run build`.
   `docker compose down --volumes` before restarting.
 - Never edit a Flyway migration after it has run. If startup reports a checksum
   mismatch for V1, restore the committed V1 file. Put intentional schema changes
-  in a new V2 migration instead.
+  in a new migration instead.
 - PostgreSQL IDs are generated identifiers, not row counts. Deleting every row
   does not reset the next ID; gaps such as `1, 2, 5` are normal and harmless.
 - `npm audit` currently reports a moderate PostCSS advisory through Next.js.
@@ -333,3 +338,8 @@ You can also verify a production frontend build with `npm run build`.
   port 8080 and refresh the page.
 - If port 3000 or 8080 is already in use, stop the conflicting process or
   configure another port and update `API_BASE_URL` accordingly.
+- If the API reports that `GOOGLE_CLIENT_ID` or `GOOGLE_CLIENT_SECRET` cannot be
+  resolved, load the ignored `.env.local` values in the API terminal before
+  starting Spring Boot.
+- If Google reports `redirect_uri_mismatch`, confirm the OAuth client's exact
+  redirect is `http://localhost:8080/login/oauth2/code/google`.

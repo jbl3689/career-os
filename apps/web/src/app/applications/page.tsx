@@ -1,5 +1,10 @@
 import { ApplicationDashboard } from "./ApplicationDashboard";
+import { RequireAuthentication } from "@/components/RequireAuthentication";
 
 export default function ApplicationsPage() {
-  return <ApplicationDashboard />;
+  return (
+    <RequireAuthentication>
+      <ApplicationDashboard />
+    </RequireAuthentication>
+  );
 }

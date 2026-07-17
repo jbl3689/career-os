@@ -3,6 +3,8 @@ package com.careeros.api.application;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.get;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.patch;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.post;
+import static org.springframework.security.test.web.servlet.request.SecurityMockMvcRequestPostProcessors.csrf;
+import static org.springframework.security.test.web.servlet.request.SecurityMockMvcRequestPostProcessors.oidcLogin;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.header;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.jsonPath;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.status;
@@ -11,6 +13,7 @@ import com.careeros.api.application.persistence.CompanyRepository;
 import com.careeros.api.application.persistence.JobApplicationRepository;
 import com.careeros.api.application.persistence.JobEventRepository;
 import com.careeros.api.PostgresIntegrationTest;
+import com.careeros.api.auth.persistence.UserRepository;
 import com.jayway.jsonpath.JsonPath;
 
 import org.junit.jupiter.api.BeforeEach;
@@ -18,6 +21,7 @@ import org.junit.jupiter.api.Test;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.http.MediaType;
 import org.springframework.test.web.servlet.MockMvc;
+import org.springframework.test.web.servlet.request.RequestPostProcessor;
 
 class JobApplicationControllerTests extends PostgresIntegrationTest {
 
@@ -33,18 +37,28 @@ class JobApplicationControllerTests extends PostgresIntegrationTest {
 	@Autowired
 	private JobEventRepository eventRepository;
 
+	@Autowired
+	private UserRepository userRepository;
+
 	@BeforeEach
 	void clearDatabase() {
 		eventRepository.deleteAll();
 		applicationRepository.deleteAll();
 		companyRepository.deleteAll();
+		userRepository.deleteAll();
 	}
 
 	@Test
 	void listsApplications() throws Exception {
-		mockMvc.perform(get("/api/v1/applications"))
+		mockMvc.perform(get("/api/v1/applications").with(authenticatedUser()))
 				.andExpect(status().isOk())
 				.andExpect(jsonPath("$").isArray());
+	}
+
+	@Test
+	void requiresAuthentication() throws Exception {
+		mockMvc.perform(get("/api/v1/applications"))
+				.andExpect(status().isUnauthorized());
 	}
 
 	@Test
@@ -60,6 +74,8 @@ class JobApplicationControllerTests extends PostgresIntegrationTest {
 				""";
 
 		mockMvc.perform(post("/api/v1/applications")
+						.with(authenticatedUser())
+						.with(csrf())
 						.contentType(MediaType.APPLICATION_JSON)
 						.content(requestBody))
 				.andExpect(status().isCreated())
@@ -75,6 +91,8 @@ class JobApplicationControllerTests extends PostgresIntegrationTest {
 	@Test
 	void rejectsMissingRequiredFields() throws Exception {
 		mockMvc.perform(post("/api/v1/applications")
+						.with(authenticatedUser())
+						.with(csrf())
 						.contentType(MediaType.APPLICATION_JSON)
 						.content("{}"))
 				.andExpect(status().isBadRequest())
@@ -98,6 +116,8 @@ class JobApplicationControllerTests extends PostgresIntegrationTest {
 				""";
 
 		mockMvc.perform(post("/api/v1/applications")
+						.with(authenticatedUser())
+						.with(csrf())
 						.contentType(MediaType.APPLICATION_JSON)
 						.content(requestBody))
 				.andExpect(status().isBadRequest())
@@ -108,7 +128,7 @@ class JobApplicationControllerTests extends PostgresIntegrationTest {
 	void getsAnApplicationById() throws Exception {
 		long id = createApplication();
 
-		mockMvc.perform(get("/api/v1/applications/{id}", id))
+		mockMvc.perform(get("/api/v1/applications/{id}", id).with(authenticatedUser()))
 				.andExpect(status().isOk())
 				.andExpect(jsonPath("$.id").value(id))
 				.andExpect(jsonPath("$.companyName").value("Acme Ltd"))
@@ -126,6 +146,8 @@ class JobApplicationControllerTests extends PostgresIntegrationTest {
 				""";
 
 		mockMvc.perform(patch("/api/v1/applications/{id}", id)
+						.with(authenticatedUser())
+						.with(csrf())
 						.contentType(MediaType.APPLICATION_JSON)
 						.content(requestBody))
 				.andExpect(status().isOk())
@@ -136,7 +158,7 @@ class JobApplicationControllerTests extends PostgresIntegrationTest {
 
 	@Test
 	void returnsNotFoundForAnUnknownApplication() throws Exception {
-		mockMvc.perform(get("/api/v1/applications/999"))
+		mockMvc.perform(get("/api/v1/applications/999").with(authenticatedUser()))
 				.andExpect(status().isNotFound())
 				.andExpect(jsonPath("$.status").value(404))
 				.andExpect(jsonPath("$.error").value("Job application 999 was not found"));
@@ -152,6 +174,8 @@ class JobApplicationControllerTests extends PostgresIntegrationTest {
 				""";
 
 		mockMvc.perform(patch("/api/v1/applications/999")
+						.with(authenticatedUser())
+						.with(csrf())
 						.contentType(MediaType.APPLICATION_JSON)
 						.content(requestBody))
 				.andExpect(status().isNotFound())
@@ -163,6 +187,8 @@ class JobApplicationControllerTests extends PostgresIntegrationTest {
 		long id = createApplication();
 
 		mockMvc.perform(patch("/api/v1/applications/{id}", id)
+						.with(authenticatedUser())
+						.with(csrf())
 						.contentType(MediaType.APPLICATION_JSON)
 						.content("{\"notes\":\"First interview booked.\"}"))
 				.andExpect(status().isBadRequest())
@@ -181,6 +207,8 @@ class JobApplicationControllerTests extends PostgresIntegrationTest {
 				""";
 
 		String responseBody = mockMvc.perform(post("/api/v1/applications")
+						.with(authenticatedUser())
+						.with(csrf())
 						.contentType(MediaType.APPLICATION_JSON)
 						.content(requestBody))
 				.andExpect(status().isCreated())
@@ -189,5 +217,12 @@ class JobApplicationControllerTests extends PostgresIntegrationTest {
 				.getContentAsString();
 
 		return ((Number) JsonPath.read(responseBody, "$.id")).longValue();
+	}
+
+	private RequestPostProcessor authenticatedUser() {
+		return oidcLogin().idToken(token -> token
+				.subject("google-subject")
+				.claim("email", "developer@example.com")
+				.claim("name", "Career OS Developer"));
 	}
 }

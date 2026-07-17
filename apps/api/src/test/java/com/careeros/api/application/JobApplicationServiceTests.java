@@ -3,6 +3,7 @@ package com.careeros.api.application;
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.assertThatThrownBy;
 
+import java.time.Instant;
 import java.time.LocalDate;
 import java.util.List;
 
@@ -12,6 +13,8 @@ import com.careeros.api.application.persistence.JobApplicationRepository;
 import com.careeros.api.application.persistence.JobEventEntity;
 import com.careeros.api.application.persistence.JobEventRepository;
 import com.careeros.api.application.persistence.JobEventType;
+import com.careeros.api.auth.persistence.UserEntity;
+import com.careeros.api.auth.persistence.UserRepository;
 
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
@@ -31,11 +34,23 @@ class JobApplicationServiceTests extends PostgresIntegrationTest {
 	@Autowired
 	private JobEventRepository eventRepository;
 
+	@Autowired
+	private UserRepository userRepository;
+
+	private UserEntity user;
+
 	@BeforeEach
 	void clearDatabase() {
 		eventRepository.deleteAll();
 		applicationRepository.deleteAll();
 		companyRepository.deleteAll();
+		userRepository.deleteAll();
+		user = userRepository.save(new UserEntity(
+				"google-subject-1",
+				"developer@example.com",
+				"Career OS Developer",
+				null,
+				Instant.parse("2026-07-20T10:00:00Z")));
 	}
 
 	@Test
@@ -48,21 +63,21 @@ class JobApplicationServiceTests extends PostgresIntegrationTest {
 				applicationDate,
 				"  Applied through the company website.  ");
 
-		JobApplicationResponse created = service.createApplication(request);
+		JobApplicationResponse created = service.createApplication(user, request);
 
 		assertThat(created.id()).isPositive();
 		assertThat(created.companyName()).isEqualTo("Acme Ltd");
 		assertThat(created.roleTitle()).isEqualTo("Software Engineer");
 		assertThat(created.notes()).isEqualTo("Applied through the company website.");
 		assertThat(created.lastActivityDate()).isEqualTo(applicationDate);
-		assertThat(service.listApplications()).containsExactly(created);
+		assertThat(service.listApplications(user)).containsExactly(created);
 		assertThat(eventTypesFor(created.id())).containsExactly(JobEventType.APPLICATION_CREATED);
 	}
 
 	@Test
 	void reusesAnExistingCompany() {
 		createApplication();
-		service.createApplication(new CreateJobApplicationRequest(
+		service.createApplication(user, new CreateJobApplicationRequest(
 				"Acme Ltd",
 				"Senior Software Engineer",
 				ApplicationStatus.APPLIED,
@@ -82,7 +97,7 @@ class JobApplicationServiceTests extends PostgresIntegrationTest {
 				LocalDate.of(2026, 7, 16),
 				null);
 
-		JobApplicationResponse created = service.createApplication(request);
+		JobApplicationResponse created = service.createApplication(user, request);
 
 		assertThat(created.notes()).isEmpty();
 	}
@@ -91,7 +106,7 @@ class JobApplicationServiceTests extends PostgresIntegrationTest {
 	void getsAnApplicationById() {
 		JobApplicationResponse created = createApplication();
 
-		JobApplicationResponse found = service.getApplication(created.id());
+		JobApplicationResponse found = service.getApplication(user, created.id());
 
 		assertThat(found).isEqualTo(created);
 	}
@@ -103,12 +118,12 @@ class JobApplicationServiceTests extends PostgresIntegrationTest {
 				ApplicationStatus.INTERVIEWING,
 				"  First interview booked.  ");
 
-		JobApplicationResponse updated = service.updateApplication(created.id(), request);
+		JobApplicationResponse updated = service.updateApplication(user, created.id(), request);
 
 		assertThat(updated.status()).isEqualTo(ApplicationStatus.INTERVIEWING);
 		assertThat(updated.notes()).isEqualTo("First interview booked.");
 		assertThat(updated.lastActivityDate()).isEqualTo(LocalDate.of(2026, 7, 20));
-		assertThat(service.getApplication(created.id())).isEqualTo(updated);
+		assertThat(service.getApplication(user, created.id())).isEqualTo(updated);
 		assertThat(eventTypesFor(created.id())).containsExactly(
 				JobEventType.APPLICATION_CREATED,
 				JobEventType.STATUS_CHANGED,
@@ -120,6 +135,7 @@ class JobApplicationServiceTests extends PostgresIntegrationTest {
 		JobApplicationResponse created = createApplication();
 
 		JobApplicationResponse updated = service.updateApplication(
+				user,
 				created.id(),
 				new UpdateJobApplicationRequest(ApplicationStatus.INTERVIEWING, null));
 
@@ -131,13 +147,28 @@ class JobApplicationServiceTests extends PostgresIntegrationTest {
 
 	@Test
 	void rejectsAnUnknownApplicationId() {
-		assertThatThrownBy(() -> service.getApplication(999))
+		assertThatThrownBy(() -> service.getApplication(user, 999))
 				.isInstanceOf(JobApplicationNotFoundException.class)
 				.hasMessage("Job application 999 was not found");
 	}
 
+	@Test
+	void doesNotExposeAnotherUsersApplication() {
+		JobApplicationResponse created = createApplication();
+		UserEntity anotherUser = userRepository.save(new UserEntity(
+				"google-subject-2",
+				"another@example.com",
+				"Another User",
+				null,
+				Instant.parse("2026-07-20T10:00:00Z")));
+
+		assertThat(service.listApplications(anotherUser)).isEmpty();
+		assertThatThrownBy(() -> service.getApplication(anotherUser, created.id()))
+				.isInstanceOf(JobApplicationNotFoundException.class);
+	}
+
 	private JobApplicationResponse createApplication() {
-		return service.createApplication(new CreateJobApplicationRequest(
+		return service.createApplication(user, new CreateJobApplicationRequest(
 				"Acme Ltd",
 				"Software Engineer",
 				ApplicationStatus.APPLIED,
