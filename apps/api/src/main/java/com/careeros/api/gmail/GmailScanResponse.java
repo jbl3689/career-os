@@ -6,5 +6,6 @@ import java.util.List;
 public record GmailScanResponse(
 		Instant scannedAt,
 		int candidatesFound,
-		List<GmailMessageMetadata> candidates) {
+		int newCandidatesFound,
+		List<GmailCandidateResponse> candidates) {
 }

@@ -25,6 +25,12 @@ class GmailScanTestConfiguration {
 		return new RecordingGmailClient();
 	}
 
+	@Bean
+	@Primary
+	RecordingGmailMessageClassifier recordingGmailMessageClassifier() {
+		return new RecordingGmailMessageClassifier();
+	}
+
 	static final class RecordingGoogleAccessTokenClient implements GoogleAccessTokenClient {
 
 		private String receivedRefreshToken;
@@ -102,6 +108,29 @@ class GmailScanTestConfiguration {
 			receivedQuery = null;
 			receivedMaximumResults = 0;
 			shouldFail = false;
+		}
+	}
+
+	static final class RecordingGmailMessageClassifier implements GmailMessageClassifier {
+
+		private int invocationCount;
+
+		@Override
+		public GmailMessageClassification classify(GmailMessageMetadata message) {
+			invocationCount++;
+			return new GmailMessageClassification(
+					GmailClassificationCategory.JOB_RELATED,
+					GmailEventType.INTERVIEW,
+					90,
+					"Interview terminology was found");
+		}
+
+		int getInvocationCount() {
+			return invocationCount;
+		}
+
+		void reset() {
+			invocationCount = 0;
 		}
 	}
 }

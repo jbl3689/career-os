@@ -48,10 +48,10 @@ Stages 0, 1, 2, and 3 are complete. The current goal is:
 
 - complete: manual scan foundation using token refresh, a capped recent
   Gmail search, and minimal candidate metadata;
-- pending: persisted email-message and scan-result schema;
-- pending: deterministic classification;
+- complete: persisted email-message and scan-result schema;
+- complete: idempotent storage keyed by user and Gmail message ID;
+- complete: deterministic metadata classification with explainable rule scores;
 - pending: application matching and proposed-application review;
-- pending: idempotent re-scan handling;
 - pending: final Stage 4 tests and documentation review.
 
 Do not schedule scans or add Gmail push notifications in this stage. Do not add
@@ -222,6 +222,5 @@ Do not begin the next stage without an explicit request.
 
 ## Immediate next task
 
-Review real candidate results from the read-only scan, then add the smallest
-persisted email-message and scan-result schema needed for idempotent
-classification. Do not automatically create or update applications yet.
+Add application-matching suggestions and a review flow for uncertain or
+unmatched results. Do not automatically create or update applications yet.

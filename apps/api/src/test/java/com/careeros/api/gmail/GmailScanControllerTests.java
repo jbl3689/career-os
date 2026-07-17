@@ -15,6 +15,9 @@ import com.careeros.api.auth.google.GoogleConnectionRepository;
 import com.careeros.api.auth.google.GoogleConnectionService;
 import com.careeros.api.auth.persistence.UserEntity;
 import com.careeros.api.auth.persistence.UserRepository;
+import com.careeros.api.gmail.persistence.EmailMessageRepository;
+import com.careeros.api.gmail.persistence.GmailScanResultRepository;
+import com.careeros.api.gmail.persistence.GmailScanResultStatus;
 
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
@@ -38,17 +41,29 @@ class GmailScanControllerTests extends PostgresIntegrationTest {
 	private UserRepository userRepository;
 
 	@Autowired
+	private EmailMessageRepository emailMessageRepository;
+
+	@Autowired
+	private GmailScanResultRepository scanResultRepository;
+
+	@Autowired
 	private GmailScanTestConfiguration.RecordingGoogleAccessTokenClient accessTokenClient;
 
 	@Autowired
 	private GmailScanTestConfiguration.RecordingGmailClient gmailClient;
 
+	@Autowired
+	private GmailScanTestConfiguration.RecordingGmailMessageClassifier classifier;
+
 	@BeforeEach
 	void clearDatabase() {
+		scanResultRepository.deleteAll();
+		emailMessageRepository.deleteAll();
 		connectionRepository.deleteAll();
 		userRepository.deleteAll();
 		accessTokenClient.reset();
 		gmailClient.reset();
+		classifier.reset();
 	}
 
 	@Test
@@ -62,6 +77,7 @@ class GmailScanControllerTests extends PostgresIntegrationTest {
 				.andExpect(status().isOk())
 				.andExpect(jsonPath("$.scannedAt").value("2026-07-20T10:00:00Z"))
 				.andExpect(jsonPath("$.candidatesFound").value(1))
+				.andExpect(jsonPath("$.newCandidatesFound").value(1))
 				.andExpect(jsonPath("$.candidates[0].gmailMessageId").value("message-1"))
 				.andExpect(jsonPath("$.candidates[0].gmailThreadId").value("thread-1"))
 				.andExpect(jsonPath("$.candidates[0].sender")
@@ -69,6 +85,12 @@ class GmailScanControllerTests extends PostgresIntegrationTest {
 				.andExpect(jsonPath("$.candidates[0].subject").value("Interview invitation"))
 				.andExpect(jsonPath("$.candidates[0].receivedAt")
 						.value("2026-07-19T14:30:00Z"))
+				.andExpect(jsonPath("$.candidates[0].newlyDiscovered").value(true))
+				.andExpect(jsonPath("$.candidates[0].classification").value("JOB_RELATED"))
+				.andExpect(jsonPath("$.candidates[0].eventType").value("INTERVIEW"))
+				.andExpect(jsonPath("$.candidates[0].confidenceScore").isNumber())
+				.andExpect(jsonPath("$.candidates[0].classificationReason")
+						.value("Interview terminology was found"))
 				.andExpect(jsonPath("$.candidates[0].body").doesNotExist())
 				.andExpect(jsonPath("$.accessToken").doesNotExist())
 				.andExpect(jsonPath("$.refreshToken").doesNotExist());
@@ -79,6 +101,42 @@ class GmailScanControllerTests extends PostgresIntegrationTest {
 				.contains("newer_than:1y")
 				.contains("subject:interview");
 		assertThat(gmailClient.getReceivedMaximumResults()).isEqualTo(10);
+		assertThat(emailMessageRepository.count()).isEqualTo(1);
+		assertThat(scanResultRepository.findAll())
+				.singleElement()
+				.satisfies(result -> {
+					assertThat(result.getStatus())
+							.isEqualTo(GmailScanResultStatus.READY_FOR_MATCHING);
+					assertThat(result.getClassification())
+							.isEqualTo(GmailClassificationCategory.JOB_RELATED);
+					assertThat(result.getEventType())
+							.isEqualTo(GmailEventType.INTERVIEW);
+				});
+	}
+
+	@Test
+	void rescanningTheSameGmailMessageDoesNotCreateDuplicates() throws Exception {
+		UserEntity user = saveUser();
+		connectGmail(user);
+
+		mockMvc.perform(post("/api/v1/gmail/scan")
+						.with(authenticatedUser())
+						.with(csrf()))
+				.andExpect(status().isOk())
+				.andExpect(jsonPath("$.newCandidatesFound").value(1))
+				.andExpect(jsonPath("$.candidates[0].newlyDiscovered").value(true));
+
+		mockMvc.perform(post("/api/v1/gmail/scan")
+						.with(authenticatedUser())
+						.with(csrf()))
+				.andExpect(status().isOk())
+				.andExpect(jsonPath("$.candidatesFound").value(1))
+				.andExpect(jsonPath("$.newCandidatesFound").value(0))
+				.andExpect(jsonPath("$.candidates[0].newlyDiscovered").value(false));
+
+		assertThat(emailMessageRepository.count()).isEqualTo(1);
+		assertThat(scanResultRepository.count()).isEqualTo(1);
+		assertThat(classifier.getInvocationCount()).isEqualTo(1);
 	}
 
 	@Test

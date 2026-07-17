@@ -64,7 +64,7 @@ describe("GoogleConnectionPanel", () => {
     expect(await screen.findByRole("link", { name: "Connect Gmail" })).toBeDefined();
   });
 
-  it("manually scans Gmail and shows temporary candidate metadata", async () => {
+  it("manually scans Gmail and shows persisted candidate metadata", async () => {
     vi.mocked(getGoogleConnection).mockResolvedValue({
       connected: true,
       gmailAddress: "developer@example.com",
@@ -73,6 +73,7 @@ describe("GoogleConnectionPanel", () => {
     vi.mocked(scanGmail).mockResolvedValue({
       scannedAt: "2026-07-20T10:05:00Z",
       candidatesFound: 1,
+      newCandidatesFound: 1,
       candidates: [
         {
           gmailMessageId: "message-1",
@@ -80,6 +81,11 @@ describe("GoogleConnectionPanel", () => {
           sender: "Recruiter <recruiter@example.com>",
           subject: "Interview invitation",
           receivedAt: "2026-07-19T14:30:00Z",
+          newlyDiscovered: true,
+          classification: "JOB_RELATED",
+          eventType: "INTERVIEW",
+          confidenceScore: 95,
+          classificationReason: "Interview terminology was found",
         },
       ],
     });
@@ -96,8 +102,13 @@ describe("GoogleConnectionPanel", () => {
     ).toBeDefined();
     expect(
       screen.getByText(
-        "These results are not stored and have not changed any applications.",
+        "Candidate metadata is stored for classification and duplicate prevention. No applications have been changed.",
       ),
     ).toBeDefined();
+    expect(screen.getByText("New")).toBeDefined();
+    expect(
+      screen.getByText("Likely job-related · Interview · Rule score 95/100"),
+    ).toBeDefined();
+    expect(screen.getByText("Interview terminology was found")).toBeDefined();
   });
 });

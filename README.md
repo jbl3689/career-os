@@ -172,7 +172,7 @@ From the application tracker you can:
 - sign in and out with Google;
 - separately connect and disconnect the same Google account for future
   read-only Gmail access;
-- manually scan a capped recent window and inspect candidate message metadata;
+- manually scan a capped recent window and persist candidate message metadata;
 - create an application;
 - view all applications;
 - select an application to see its details;
@@ -236,11 +236,28 @@ Migration `V3__add_google_connections.sql` adds:
 - the connected Gmail address and exact granted scopes;
 - an AES-256-GCM encrypted refresh token, never the plaintext token.
 
+Migration `V4__add_gmail_scan_results.sql` adds:
+
+- `email_messages`, containing only the Gmail identifiers, sender, subject, and
+  received time needed for Stage 4 processing;
+- a unique `(user_id, gmail_message_id)` constraint that prevents duplicate
+  messages when a user scans again;
+- `gmail_scan_results`, containing one processing state per stored message.
+
+Migration `V5__add_gmail_classification.sql` adds:
+
+- a deterministic classification of `JOB_RELATED`, `NOT_JOB_RELATED`, or
+  `UNCERTAIN`;
+- a likely event type, such as `INTERVIEW`, `ASSESSMENT`, or `APPLICATION`;
+- an explainable 0–100 rule score and short reason;
+- processing states for matching, review, and ignored non-job results.
+
 The relationships are:
 
 ```text
 users     1 ─── many job_applications 1 ─── many job_events
 users     1 ─── zero-or-one google_connections
+users     1 ─── many email_messages 1 ─── one gmail_scan_results
 companies 1 ─── many job_applications
 ```
 
@@ -259,12 +276,19 @@ Then use these `psql` commands:
 \d job_applications
 \d job_events
 \d google_connections
+\d email_messages
+\d gmail_scan_results
 SELECT * FROM flyway_schema_history;
 SELECT id, email, display_name FROM users;
 SELECT * FROM companies;
 SELECT * FROM job_applications;
 SELECT * FROM job_events ORDER BY event_date, id;
 SELECT user_id, gmail_address, granted_scopes FROM google_connections;
+SELECT gmail_message_id, subject, first_seen_at, last_seen_at
+FROM email_messages ORDER BY received_at DESC;
+SELECT email_message_id, status, classification, event_type,
+       confidence_score, classification_reason
+FROM gmail_scan_results;
 \q
 ```
 
@@ -274,7 +298,7 @@ package. They are named `CompanyEntity`, `JobApplicationEntity`, and
 The user mapping lives in the authentication feature's persistence package.
 
 Do not edit an applied Flyway migration. Future schema changes must be added as
-new files such as `V3__describe_the_change.sql`, preserving a repeatable schema
+new files such as `V6__describe_the_change.sql`, preserving a repeatable schema
 history for every environment.
 
 ## Current backend API
@@ -300,12 +324,22 @@ and deletes the encrypted local token. Connecting begins at
    job-related terms;
 4. retrieves only the Gmail message ID, thread ID, sender, subject, and received
    time;
-5. returns those temporary candidates to the frontend.
+5. stores new candidate metadata and creates its classification record;
+6. applies deterministic rules using sender and subject metadata;
+7. stores the classification, likely event type, rule score, and reason;
+8. updates `last_seen_at` instead of duplicating a message seen in an earlier
+   scan;
+9. returns candidates with their classification and a `newlyDiscovered` flag.
 
-The current slice deliberately does not store messages, retrieve email bodies,
-classify results, match applications, or change any application data. Refreshing
-the page clears the displayed candidates. This gives us real examples for
-tuning deterministic rules before a Flyway schema makes the result durable.
+The rules recognise job-process terminology and common recruiting-system
+senders. They also treat terms such as visa, immigration, and passport as
+negative evidence when stronger job evidence is absent. Conflicting or broad
+signals remain `UNCERTAIN` for later review. The score is a heuristic strength
+indicator, not a statistically calibrated probability.
+
+The current slice deliberately does not retrieve email bodies, match
+applications, or change any application data. Refreshing the page clears the
+displayed response, but the metadata and classification remain in PostgreSQL.
 
 Google's `messages.list` endpoint initially returns only message and thread IDs,
 so the API follows each capped result with a `messages.get` request using

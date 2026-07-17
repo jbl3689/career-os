@@ -11,6 +11,22 @@ function formatReceivedAt(value: string): string {
   }).format(new Date(value));
 }
 
+const classificationLabels = {
+  JOB_RELATED: "Likely job-related",
+  NOT_JOB_RELATED: "Not job-related",
+  UNCERTAIN: "Needs review",
+} as const;
+
+const eventTypeLabels = {
+  APPLICATION: "Application",
+  INTERVIEW: "Interview",
+  ASSESSMENT: "Assessment",
+  OFFER: "Offer",
+  REJECTION: "Rejection",
+  RECRUITER_CONTACT: "Recruiter contact",
+  UNKNOWN: "Unknown event",
+} as const;
+
 export function GmailScanResults({ candidates }: GmailScanResultsProps) {
   if (candidates.length === 0) {
     return (
@@ -28,20 +44,34 @@ export function GmailScanResults({ candidates }: GmailScanResultsProps) {
       <ul className="mt-3 divide-y divide-slate-200 border-y border-slate-200">
         {candidates.map((candidate) => (
           <li key={candidate.gmailMessageId} className="py-3">
-            <p className="font-medium text-slate-950">
-              {candidate.subject || "No subject"}
-            </p>
+            <div className="flex items-start justify-between gap-3">
+              <p className="font-medium text-slate-950">
+                {candidate.subject || "No subject"}
+              </p>
+              <span className="text-xs text-slate-500">
+                {candidate.newlyDiscovered ? "New" : "Previously found"}
+              </span>
+            </div>
             <p className="mt-1 text-sm text-slate-600">
               {candidate.sender || "Unknown sender"}
             </p>
             <p className="mt-1 text-xs text-slate-500">
               {formatReceivedAt(candidate.receivedAt)}
             </p>
+            <p className="mt-2 text-sm text-slate-700">
+              {classificationLabels[candidate.classification]} ·{" "}
+              {eventTypeLabels[candidate.eventType]} · Rule score{" "}
+              {candidate.confidenceScore}/100
+            </p>
+            <p className="mt-1 text-xs text-slate-500">
+              {candidate.classificationReason}
+            </p>
           </li>
         ))}
       </ul>
       <p className="mt-3 text-xs text-slate-500">
-        These results are not stored and have not changed any applications.
+        Candidate metadata is stored for classification and duplicate
+        prevention. No applications have been changed.
       </p>
     </div>
   );

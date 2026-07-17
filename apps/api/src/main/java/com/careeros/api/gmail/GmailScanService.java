@@ -24,16 +24,19 @@ public class GmailScanService {
 	private final GoogleConnectionService connectionService;
 	private final GoogleAccessTokenClient accessTokenClient;
 	private final GmailClient gmailClient;
+	private final GmailScanPersistenceService persistenceService;
 	private final Clock clock;
 
 	public GmailScanService(
 			GoogleConnectionService connectionService,
 			GoogleAccessTokenClient accessTokenClient,
 			GmailClient gmailClient,
+			GmailScanPersistenceService persistenceService,
 			Clock clock) {
 		this.connectionService = connectionService;
 		this.accessTokenClient = accessTokenClient;
 		this.gmailClient = gmailClient;
+		this.persistenceService = persistenceService;
 		this.clock = clock;
 	}
 
@@ -46,10 +49,16 @@ public class GmailScanService {
 					accessToken,
 					CANDIDATE_QUERY,
 					MAXIMUM_RESULTS);
+			Instant scannedAt = Instant.now(clock);
+			List<GmailCandidateResponse> persistedCandidates =
+					persistenceService.persistCandidates(user, candidates, scannedAt);
 			return new GmailScanResponse(
-					Instant.now(clock),
-					candidates.size(),
-					candidates);
+					scannedAt,
+					persistedCandidates.size(),
+					(int) persistedCandidates.stream()
+							.filter(GmailCandidateResponse::newlyDiscovered)
+							.count(),
+					persistedCandidates);
 		}
 		catch (GoogleAccessTokenException exception) {
 			throw new GmailScanFailedException(
