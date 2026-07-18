@@ -4,6 +4,8 @@ import java.time.Instant;
 import java.util.ArrayList;
 import java.util.List;
 
+import com.careeros.api.application.persistence.JobApplicationEntity;
+import com.careeros.api.application.persistence.JobApplicationRepository;
 import com.careeros.api.auth.persistence.UserEntity;
 import com.careeros.api.gmail.persistence.EmailMessageEntity;
 import com.careeros.api.gmail.persistence.EmailMessageRepository;
@@ -19,14 +21,20 @@ public class GmailScanPersistenceService {
 	private final EmailMessageRepository emailMessageRepository;
 	private final GmailScanResultRepository scanResultRepository;
 	private final GmailMessageClassifier classifier;
+	private final JobApplicationRepository applicationRepository;
+	private final GmailApplicationMatcher applicationMatcher;
 
 	public GmailScanPersistenceService(
 			EmailMessageRepository emailMessageRepository,
 			GmailScanResultRepository scanResultRepository,
-			GmailMessageClassifier classifier) {
+			GmailMessageClassifier classifier,
+			JobApplicationRepository applicationRepository,
+			GmailApplicationMatcher applicationMatcher) {
 		this.emailMessageRepository = emailMessageRepository;
 		this.scanResultRepository = scanResultRepository;
 		this.classifier = classifier;
+		this.applicationRepository = applicationRepository;
+		this.applicationMatcher = applicationMatcher;
 	}
 
 	@Transactional
@@ -35,6 +43,8 @@ public class GmailScanPersistenceService {
 			List<GmailMessageMetadata> candidates,
 			Instant scannedAt) {
 		List<GmailCandidateResponse> persistedCandidates = new ArrayList<>();
+		List<JobApplicationEntity> applications =
+				applicationRepository.findAllByUserIdOrderByIdAsc(user.getId());
 
 		for (GmailMessageMetadata candidate : candidates) {
 			StoredCandidate storedCandidate = emailMessageRepository
@@ -51,6 +61,11 @@ public class GmailScanPersistenceService {
 						classifier.classify(candidate),
 						scannedAt);
 			}
+			if (scanResult.needsMatching()) {
+				scanResult.applyMatching(
+						applicationMatcher.findSuggestion(candidate, applications),
+						scannedAt);
+			}
 			if (storedCandidate.newlyDiscovered()) {
 				scanResultRepository.save(scanResult);
 			}
@@ -59,7 +74,7 @@ public class GmailScanPersistenceService {
 					GmailCandidateResponse.from(
 							candidate,
 							storedCandidate.newlyDiscovered(),
-							scanResult.classificationResult()));
+							scanResult));
 		}
 
 		return List.copyOf(persistedCandidates);

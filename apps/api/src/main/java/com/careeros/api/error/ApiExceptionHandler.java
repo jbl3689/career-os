@@ -6,6 +6,7 @@ import java.util.Map;
 import com.careeros.api.application.JobApplicationNotFoundException;
 import com.careeros.api.auth.google.GmailConnectionRequiredException;
 import com.careeros.api.gmail.GmailScanFailedException;
+import com.careeros.api.gmail.GmailReviewNotFoundException;
 import org.springframework.http.ResponseEntity;
 import org.springframework.http.converter.HttpMessageNotReadableException;
 import org.springframework.web.bind.MethodArgumentNotValidException;
@@ -33,6 +34,13 @@ public class ApiExceptionHandler {
 
 	@ExceptionHandler(JobApplicationNotFoundException.class)
 	public ResponseEntity<ApiErrorResponse> handleNotFound(JobApplicationNotFoundException exception) {
+		return ResponseEntity.status(404)
+				.body(new ApiErrorResponse(404, exception.getMessage(), Map.of()));
+	}
+
+	@ExceptionHandler(GmailReviewNotFoundException.class)
+	public ResponseEntity<ApiErrorResponse> handleGmailReviewNotFound(
+			GmailReviewNotFoundException exception) {
 		return ResponseEntity.status(404)
 				.body(new ApiErrorResponse(404, exception.getMessage(), Map.of()));
 	}

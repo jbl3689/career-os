@@ -39,7 +39,7 @@ export function GmailScanResults({ candidates }: GmailScanResultsProps) {
   return (
     <div className="mt-5">
       <h3 className="text-sm font-semibold text-slate-950">
-        Candidate messages ({candidates.length})
+        Latest scan results ({candidates.length})
       </h3>
       <ul className="mt-3 divide-y divide-slate-200 border-y border-slate-200">
         {candidates.map((candidate) => (
@@ -66,6 +66,12 @@ export function GmailScanResults({ candidates }: GmailScanResultsProps) {
             <p className="mt-1 text-xs text-slate-500">
               {candidate.classificationReason}
             </p>
+            {candidate.suggestedApplication ? (
+              <p className="mt-2 text-sm text-sky-800">
+                Suggested match: {candidate.suggestedApplication.roleTitle} at{" "}
+                {candidate.suggestedApplication.companyName}
+              </p>
+            ) : null}
           </li>
         ))}
       </ul>

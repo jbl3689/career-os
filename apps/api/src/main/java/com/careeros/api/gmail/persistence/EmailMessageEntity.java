@@ -73,6 +73,26 @@ public class EmailMessageEntity {
 		return gmailMessageId;
 	}
 
+	public String getGmailThreadId() {
+		return gmailThreadId;
+	}
+
+	public String getSender() {
+		return sender;
+	}
+
+	public String getSubject() {
+		return subject;
+	}
+
+	public Instant getReceivedAt() {
+		return receivedAt;
+	}
+
+	public UserEntity getUser() {
+		return user;
+	}
+
 	public Instant getLastSeenAt() {
 		return lastSeenAt;
 	}

@@ -12,12 +12,17 @@ public record GmailCandidateResponse(
 		GmailClassificationCategory classification,
 		GmailEventType eventType,
 		int confidenceScore,
-		String classificationReason) {
+		String classificationReason,
+		long reviewId,
+		GmailReviewStatus reviewStatus,
+		ApplicationMatchSuggestion suggestedApplication,
+		Long selectedApplicationId) {
 
 	static GmailCandidateResponse from(
 			GmailMessageMetadata message,
 			boolean newlyDiscovered,
-			GmailMessageClassification classification) {
+			com.careeros.api.gmail.persistence.GmailScanResultEntity scanResult) {
+		GmailMessageClassification classification = scanResult.classificationResult();
 		return new GmailCandidateResponse(
 				message.gmailMessageId(),
 				message.gmailThreadId(),
@@ -28,6 +33,21 @@ public record GmailCandidateResponse(
 				classification.category(),
 				classification.eventType(),
 				classification.confidenceScore(),
-				classification.reason());
+				classification.reason(),
+				scanResult.getId(),
+				scanResult.getReviewStatus(),
+				scanResult.matchSuggestion(),
+				scanResult.getSelectedApplicationId());
+	}
+
+	static GmailCandidateResponse from(
+			com.careeros.api.gmail.persistence.GmailScanResultEntity scanResult) {
+		var message = scanResult.getEmailMessage();
+		return from(new GmailMessageMetadata(
+				message.getGmailMessageId(),
+				message.getGmailThreadId(),
+				message.getSender(),
+				message.getSubject(),
+				message.getReceivedAt()), false, scanResult);
 	}
 }

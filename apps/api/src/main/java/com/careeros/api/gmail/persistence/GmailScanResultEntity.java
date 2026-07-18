@@ -2,9 +2,13 @@ package com.careeros.api.gmail.persistence;
 
 import java.time.Instant;
 
+import com.careeros.api.application.persistence.JobApplicationEntity;
+import com.careeros.api.gmail.ApplicationMatchSuggestion;
+import com.careeros.api.gmail.GmailApplicationMatch;
 import com.careeros.api.gmail.GmailClassificationCategory;
 import com.careeros.api.gmail.GmailEventType;
 import com.careeros.api.gmail.GmailMessageClassification;
+import com.careeros.api.gmail.GmailReviewStatus;
 
 import jakarta.persistence.Column;
 import jakarta.persistence.Entity;
@@ -16,6 +20,7 @@ import jakarta.persistence.GenerationType;
 import jakarta.persistence.Id;
 import jakarta.persistence.JoinColumn;
 import jakarta.persistence.OneToOne;
+import jakarta.persistence.ManyToOne;
 import jakarta.persistence.Table;
 
 @Entity
@@ -54,6 +59,26 @@ public class GmailScanResultEntity {
 	@Column(name = "classification_reason", columnDefinition = "text")
 	private String classificationReason;
 
+	@Column(name = "match_attempted", nullable = false)
+	private boolean matchAttempted;
+
+	@ManyToOne(fetch = FetchType.LAZY)
+	@JoinColumn(name = "suggested_application_id")
+	private JobApplicationEntity suggestedApplication;
+
+	@ManyToOne(fetch = FetchType.LAZY)
+	@JoinColumn(name = "selected_application_id")
+	private JobApplicationEntity selectedApplication;
+
+	@Column(name = "match_confidence_score")
+	private Integer matchConfidenceScore;
+
+	@Column(name = "match_reason", columnDefinition = "text")
+	private String matchReason;
+
+	@Column(name = "reviewed_at")
+	private Instant reviewedAt;
+
 	protected GmailScanResultEntity() {
 	}
 
@@ -88,6 +113,32 @@ public class GmailScanResultEntity {
 		return classificationReason;
 	}
 
+	public EmailMessageEntity getEmailMessage() {
+		return emailMessage;
+	}
+
+	public GmailReviewStatus getReviewStatus() {
+		return switch (status) {
+			case MATCHED -> GmailReviewStatus.MATCHED;
+			case DISMISSED, IGNORED -> GmailReviewStatus.DISMISSED;
+			default -> GmailReviewStatus.PENDING;
+		};
+	}
+
+	public Long getSelectedApplicationId() {
+		return selectedApplication == null ? null : selectedApplication.getId();
+	}
+
+	public ApplicationMatchSuggestion matchSuggestion() {
+		if (suggestedApplication == null) {
+			return null;
+		}
+		return ApplicationMatchSuggestion.from(
+				suggestedApplication,
+				matchConfidenceScore,
+				matchReason);
+	}
+
 	public boolean isPendingClassification() {
 		return status == GmailScanResultStatus.PENDING_CLASSIFICATION;
 	}
@@ -105,6 +156,41 @@ public class GmailScanResultEntity {
 			case UNCERTAIN -> GmailScanResultStatus.PENDING_REVIEW;
 		};
 		this.updatedAt = classifiedAt;
+	}
+
+	public boolean needsMatching() {
+		return !matchAttempted
+				&& (status == GmailScanResultStatus.READY_FOR_MATCHING
+						|| status == GmailScanResultStatus.PENDING_REVIEW);
+	}
+
+	public void applyMatching(
+			java.util.Optional<GmailApplicationMatch> match,
+			Instant matchedAt) {
+		this.matchAttempted = true;
+		match.ifPresent(suggestion -> {
+			this.suggestedApplication = suggestion.application();
+			this.matchConfidenceScore = suggestion.confidenceScore();
+			this.matchReason = suggestion.reason();
+		});
+		this.status = GmailScanResultStatus.PENDING_REVIEW;
+		this.updatedAt = matchedAt;
+	}
+
+	public void confirmApplication(
+			JobApplicationEntity application,
+			Instant reviewedAt) {
+		this.selectedApplication = application;
+		this.status = GmailScanResultStatus.MATCHED;
+		this.reviewedAt = reviewedAt;
+		this.updatedAt = reviewedAt;
+	}
+
+	public void dismiss(Instant reviewedAt) {
+		this.selectedApplication = null;
+		this.status = GmailScanResultStatus.DISMISSED;
+		this.reviewedAt = reviewedAt;
+		this.updatedAt = reviewedAt;
 	}
 
 	public GmailMessageClassification classificationResult() {

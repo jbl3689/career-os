@@ -25,6 +25,18 @@ export type GmailCandidateMessage = {
   eventType: GmailEventType;
   confidenceScore: number;
   classificationReason: string;
+  reviewId: number;
+  reviewStatus: "PENDING" | "MATCHED" | "DISMISSED";
+  suggestedApplication: GmailApplicationSuggestion | null;
+  selectedApplicationId: number | null;
+};
+
+export type GmailApplicationSuggestion = {
+  applicationId: number;
+  companyName: string;
+  roleTitle: string;
+  confidenceScore: number;
+  reason: string;
 };
 
 export type GmailScanResult = {
@@ -39,4 +51,31 @@ export function scanGmail(): Promise<GmailScanResult> {
     method: "POST",
     signal: AbortSignal.timeout(15_000),
   });
+}
+
+export function listGmailReviews(): Promise<GmailCandidateMessage[]> {
+  return apiRequest<GmailCandidateMessage[]>("/api/v1/gmail/reviews");
+}
+
+export function matchGmailReview(
+  reviewId: number,
+  applicationId: number,
+): Promise<GmailCandidateMessage> {
+  return apiRequest<GmailCandidateMessage>(
+    `/api/v1/gmail/reviews/${reviewId}/match`,
+    {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ applicationId }),
+    },
+  );
+}
+
+export function dismissGmailReview(
+  reviewId: number,
+): Promise<GmailCandidateMessage> {
+  return apiRequest<GmailCandidateMessage>(
+    `/api/v1/gmail/reviews/${reviewId}/dismiss`,
+    { method: "POST" },
+  );
 }

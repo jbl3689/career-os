@@ -51,8 +51,11 @@ Stages 0, 1, 2, and 3 are complete. The current goal is:
 - complete: persisted email-message and scan-result schema;
 - complete: idempotent storage keyed by user and Gmail message ID;
 - complete: deterministic metadata classification with explainable rule scores;
-- pending: application matching and proposed-application review;
-- pending: final Stage 4 tests and documentation review.
+- complete: conservative application-match suggestions and a user-confirmed
+  review queue for suggested, uncertain, and unmatched messages;
+- complete: Stage 4 backend, frontend, migration, and documentation checks.
+
+Stage 4 implementation is complete and is awaiting developer review.
 
 Do not schedule scans or add Gmail push notifications in this stage. Do not add
 Google Calendar, an LLM, or AI classification.
@@ -222,5 +225,6 @@ Do not begin the next stage without an explicit request.
 
 ## Immediate next task
 
-Add application-matching suggestions and a review flow for uncertain or
-unmatched results. Do not automatically create or update applications yet.
+Manually review the completed Stage 4 Gmail scan and review-queue behaviour.
+Stop after the review and do not begin Stage 5 until the developer explicitly
+accepts Stage 4 and asks to continue.

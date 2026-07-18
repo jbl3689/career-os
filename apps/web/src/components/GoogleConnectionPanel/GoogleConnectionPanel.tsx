@@ -6,10 +6,19 @@ import {
   getGoogleConnection,
 } from "@/lib/google-connection-api";
 import { googleConnectionQueryKeys } from "@/lib/google-connection-query-keys";
-import { scanGmail } from "@/lib/gmail-api";
+import { listGmailReviews, scanGmail } from "@/lib/gmail-api";
+import { gmailQueryKeys } from "@/lib/gmail-query-keys";
+import type { JobApplication } from "@/lib/applications-api";
 import { GmailScanResults } from "./components/GmailScanResults";
+import { GmailReviewQueue } from "./components/GmailReviewQueue";
 
-export function GoogleConnectionPanel() {
+type GoogleConnectionPanelProps = {
+  applications: JobApplication[];
+};
+
+export function GoogleConnectionPanel({
+  applications,
+}: GoogleConnectionPanelProps) {
   const queryClient = useQueryClient();
   const connectionQuery = useQuery({
     queryKey: googleConnectionQueryKeys.connection,
@@ -18,6 +27,13 @@ export function GoogleConnectionPanel() {
   });
   const scanMutation = useMutation({
     mutationFn: scanGmail,
+    onSuccess: () =>
+      queryClient.invalidateQueries({ queryKey: gmailQueryKeys.reviews }),
+  });
+  const reviewsQuery = useQuery({
+    queryKey: gmailQueryKeys.reviews,
+    queryFn: listGmailReviews,
+    enabled: connectionQuery.data?.connected === true,
   });
   const disconnectMutation = useMutation({
     mutationFn: disconnectGoogleConnection,
@@ -107,6 +123,15 @@ export function GoogleConnectionPanel() {
             ? scanMutation.error.message
             : "Gmail could not be scanned. Please try again."}
         </p>
+      ) : null}
+
+      {connectionQuery.data?.connected ? (
+        <GmailReviewQueue
+          reviews={reviewsQuery.data ?? []}
+          applications={applications}
+          isPending={reviewsQuery.isPending}
+          isError={reviewsQuery.isError}
+        />
       ) : null}
 
       {scanMutation.data ? (

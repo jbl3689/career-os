@@ -27,7 +27,7 @@ export function ApplicationDashboard() {
         </p>
       </header>
 
-      <GoogleConnectionPanel />
+      <GoogleConnectionPanel applications={applicationsQuery.data ?? []} />
 
       <div className="mt-8 grid gap-8 lg:grid-cols-[minmax(0,1fr)_22rem]">
         <ApplicationList

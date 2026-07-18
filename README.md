@@ -13,7 +13,7 @@ Stage 4 is adding user-triggered Gmail scanning in small, reviewable slices.
 
 A system Maven installation is not required; the backend includes the Maven
 Wrapper. PostgreSQL runs inside Docker, so a separate PostgreSQL installation is
-not required. Gmail scanning and AI are intentionally not part of this stage.
+not required. AI is intentionally reserved for a later stage.
 
 Before implementing Google sign-in, follow the development-project walkthrough
 in [`docs/google-auth-setup.md`](docs/google-auth-setup.md). Do not put the
@@ -173,6 +173,8 @@ From the application tracker you can:
 - separately connect and disconnect the same Google account for future
   read-only Gmail access;
 - manually scan a capped recent window and persist candidate message metadata;
+- review suggested application matches, choose a different existing
+  application, or dismiss a result;
 - create an application;
 - view all applications;
 - select an application to see its details;
@@ -252,6 +254,13 @@ Migration `V5__add_gmail_classification.sql` adds:
 - an explainable 0–100 rule score and short reason;
 - processing states for matching, review, and ignored non-job results.
 
+Migration `V6__add_gmail_application_review.sql` adds:
+
+- a record of whether deterministic application matching has been attempted;
+- an optional suggested and user-selected application;
+- an explainable match score and reason;
+- explicit matched and dismissed review states.
+
 The relationships are:
 
 ```text
@@ -259,6 +268,7 @@ users     1 ─── many job_applications 1 ─── many job_events
 users     1 ─── zero-or-one google_connections
 users     1 ─── many email_messages 1 ─── one gmail_scan_results
 companies 1 ─── many job_applications
+gmail_scan_results many ─── zero-or-one suggested/selected job_application
 ```
 
 Inspect the tables from the repository root:
@@ -287,7 +297,8 @@ SELECT user_id, gmail_address, granted_scopes FROM google_connections;
 SELECT gmail_message_id, subject, first_seen_at, last_seen_at
 FROM email_messages ORDER BY received_at DESC;
 SELECT email_message_id, status, classification, event_type,
-       confidence_score, classification_reason
+       confidence_score, classification_reason, suggested_application_id,
+       selected_application_id, match_confidence_score, match_reason
 FROM gmail_scan_results;
 \q
 ```
@@ -298,7 +309,7 @@ package. They are named `CompanyEntity`, `JobApplicationEntity`, and
 The user mapping lives in the authentication feature's persistence package.
 
 Do not edit an applied Flyway migration. Future schema changes must be added as
-new files such as `V6__describe_the_change.sql`, preserving a repeatable schema
+new files such as `V7__describe_the_change.sql`, preserving a repeatable schema
 history for every environment.
 
 ## Current backend API
@@ -329,17 +340,29 @@ and deletes the encrypted local token. Connecting begins at
 7. stores the classification, likely event type, rule score, and reason;
 8. updates `last_seen_at` instead of duplicating a message seen in an earlier
    scan;
-9. returns candidates with their classification and a `newlyDiscovered` flag.
+9. conservatively compares the sender and subject with the user's existing
+   company and role names;
+10. stores at most one unambiguous suggested application with a match score and
+    explanation;
+11. returns candidates with their classification, suggestion, and a
+    `newlyDiscovered` flag.
 
 The rules recognise job-process terminology and common recruiting-system
 senders. They also treat terms such as visa, immigration, and passport as
 negative evidence when stronger job evidence is absent. Conflicting or broad
-signals remain `UNCERTAIN` for later review. The score is a heuristic strength
+signals remain `UNCERTAIN` for user review. The score is a heuristic strength
 indicator, not a statistically calibrated probability.
 
-The current slice deliberately does not retrieve email bodies, match
-applications, or change any application data. Refreshing the page clears the
-displayed response, but the metadata and classification remain in PostgreSQL.
+`GET /api/v1/gmail/reviews` returns the current user's persisted review queue.
+`POST /api/v1/gmail/reviews/{id}/match` confirms an application selected by the
+user, while `POST /api/v1/gmail/reviews/{id}/dismiss` removes the result from
+the queue. Confirming a match only links the scan result: it does not change the
+application's status, notes, or timeline. If no reliable match is found, the UI
+asks the user to create the application manually and then select it.
+
+The current slice deliberately does not retrieve email bodies or automatically
+create or update application data. Refreshing the page clears the most recent
+scan response, but the persisted review queue remains available.
 
 Google's `messages.list` endpoint initially returns only message and thread IDs,
 so the API follows each capped result with a `messages.get` request using

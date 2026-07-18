@@ -4,10 +4,12 @@ import static org.assertj.core.api.Assertions.assertThat;
 import static org.springframework.security.test.web.servlet.request.SecurityMockMvcRequestPostProcessors.csrf;
 import static org.springframework.security.test.web.servlet.request.SecurityMockMvcRequestPostProcessors.oidcLogin;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.post;
+import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.get;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.jsonPath;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.status;
 
 import java.time.Instant;
+import java.time.LocalDate;
 import java.util.Set;
 
 import com.careeros.api.PostgresIntegrationTest;
@@ -15,21 +17,32 @@ import com.careeros.api.auth.google.GoogleConnectionRepository;
 import com.careeros.api.auth.google.GoogleConnectionService;
 import com.careeros.api.auth.persistence.UserEntity;
 import com.careeros.api.auth.persistence.UserRepository;
+import com.careeros.api.application.ApplicationStatus;
+import com.careeros.api.application.persistence.CompanyEntity;
+import com.careeros.api.application.persistence.CompanyRepository;
+import com.careeros.api.application.persistence.JobApplicationEntity;
+import com.careeros.api.application.persistence.JobApplicationRepository;
+import com.careeros.api.application.persistence.JobEventRepository;
 import com.careeros.api.gmail.persistence.EmailMessageRepository;
 import com.careeros.api.gmail.persistence.GmailScanResultRepository;
 import com.careeros.api.gmail.persistence.GmailScanResultStatus;
+import tools.jackson.databind.ObjectMapper;
 
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.context.annotation.Import;
 import org.springframework.test.web.servlet.MockMvc;
+import org.springframework.http.MediaType;
 
 @Import(GmailScanTestConfiguration.class)
 class GmailScanControllerTests extends PostgresIntegrationTest {
 
 	@Autowired
 	private MockMvc mockMvc;
+
+	@Autowired
+	private ObjectMapper objectMapper;
 
 	@Autowired
 	private GoogleConnectionService connectionService;
@@ -47,6 +60,15 @@ class GmailScanControllerTests extends PostgresIntegrationTest {
 	private GmailScanResultRepository scanResultRepository;
 
 	@Autowired
+	private JobEventRepository jobEventRepository;
+
+	@Autowired
+	private JobApplicationRepository applicationRepository;
+
+	@Autowired
+	private CompanyRepository companyRepository;
+
+	@Autowired
 	private GmailScanTestConfiguration.RecordingGoogleAccessTokenClient accessTokenClient;
 
 	@Autowired
@@ -59,6 +81,9 @@ class GmailScanControllerTests extends PostgresIntegrationTest {
 	void clearDatabase() {
 		scanResultRepository.deleteAll();
 		emailMessageRepository.deleteAll();
+		jobEventRepository.deleteAll();
+		applicationRepository.deleteAll();
+		companyRepository.deleteAll();
 		connectionRepository.deleteAll();
 		userRepository.deleteAll();
 		accessTokenClient.reset();
@@ -91,6 +116,10 @@ class GmailScanControllerTests extends PostgresIntegrationTest {
 				.andExpect(jsonPath("$.candidates[0].confidenceScore").isNumber())
 				.andExpect(jsonPath("$.candidates[0].classificationReason")
 						.value("Interview terminology was found"))
+				.andExpect(jsonPath("$.candidates[0].reviewId").isNumber())
+				.andExpect(jsonPath("$.candidates[0].reviewStatus").value("PENDING"))
+				.andExpect(jsonPath("$.candidates[0].suggestedApplication").doesNotExist())
+				.andExpect(jsonPath("$.candidates[0].selectedApplicationId").doesNotExist())
 				.andExpect(jsonPath("$.candidates[0].body").doesNotExist())
 				.andExpect(jsonPath("$.accessToken").doesNotExist())
 				.andExpect(jsonPath("$.refreshToken").doesNotExist());
@@ -106,12 +135,110 @@ class GmailScanControllerTests extends PostgresIntegrationTest {
 				.singleElement()
 				.satisfies(result -> {
 					assertThat(result.getStatus())
-							.isEqualTo(GmailScanResultStatus.READY_FOR_MATCHING);
+							.isEqualTo(GmailScanResultStatus.PENDING_REVIEW);
 					assertThat(result.getClassification())
 							.isEqualTo(GmailClassificationCategory.JOB_RELATED);
 					assertThat(result.getEventType())
 							.isEqualTo(GmailEventType.INTERVIEW);
 				});
+	}
+
+	@Test
+	void suggestsAndConfirmsAnExistingApplicationWithoutChangingIt() throws Exception {
+		UserEntity user = saveUser();
+		connectGmail(user);
+		JobApplicationEntity application = saveApplication(user, "Recruiter", "Interview invitation");
+
+		String scanResponse = mockMvc.perform(post("/api/v1/gmail/scan")
+						.with(authenticatedUser())
+						.with(csrf()))
+				.andExpect(status().isOk())
+				.andExpect(jsonPath("$.candidates[0].suggestedApplication.applicationId")
+						.value(application.getId()))
+				.andExpect(jsonPath("$.candidates[0].suggestedApplication.confidenceScore")
+						.value(100))
+				.andReturn()
+				.getResponse()
+				.getContentAsString();
+		long reviewId = objectMapper.readTree(scanResponse)
+				.at("/candidates/0/reviewId")
+				.asLong();
+
+		mockMvc.perform(post("/api/v1/gmail/reviews/{reviewId}/match", reviewId)
+						.with(authenticatedUser())
+						.with(csrf())
+						.contentType(MediaType.APPLICATION_JSON)
+						.content("""
+								{"applicationId": %d}
+								""".formatted(application.getId())))
+				.andExpect(status().isOk())
+				.andExpect(jsonPath("$.reviewStatus").value("MATCHED"))
+				.andExpect(jsonPath("$.selectedApplicationId").value(application.getId()));
+
+		assertThat(applicationRepository.findById(application.getId()).orElseThrow())
+				.satisfies(stored -> {
+					assertThat(stored.getStatus()).isEqualTo(ApplicationStatus.APPLIED);
+					assertThat(stored.getNotes()).isEqualTo("Original notes");
+				});
+	}
+
+	@Test
+	void listsPendingReviewsAndAllowsDismissal() throws Exception {
+		UserEntity user = saveUser();
+		connectGmail(user);
+		String scanResponse = mockMvc.perform(post("/api/v1/gmail/scan")
+						.with(authenticatedUser())
+						.with(csrf()))
+				.andReturn()
+				.getResponse()
+				.getContentAsString();
+		long reviewId = objectMapper.readTree(scanResponse)
+				.at("/candidates/0/reviewId")
+				.asLong();
+
+		mockMvc.perform(get("/api/v1/gmail/reviews").with(authenticatedUser()))
+				.andExpect(status().isOk())
+				.andExpect(jsonPath("$[0].reviewId").value(reviewId));
+
+		mockMvc.perform(post("/api/v1/gmail/reviews/{reviewId}/dismiss", reviewId)
+						.with(authenticatedUser())
+						.with(csrf()))
+				.andExpect(status().isOk())
+				.andExpect(jsonPath("$.reviewStatus").value("DISMISSED"));
+
+		mockMvc.perform(get("/api/v1/gmail/reviews").with(authenticatedUser()))
+				.andExpect(status().isOk())
+				.andExpect(jsonPath("$").isEmpty());
+	}
+
+	@Test
+	void rejectsAReviewMatchToAnUnknownApplication() throws Exception {
+		UserEntity user = saveUser();
+		connectGmail(user);
+		String scanResponse = mockMvc.perform(post("/api/v1/gmail/scan")
+						.with(authenticatedUser())
+						.with(csrf()))
+				.andReturn()
+				.getResponse()
+				.getContentAsString();
+		long reviewId = objectMapper.readTree(scanResponse)
+				.at("/candidates/0/reviewId")
+				.asLong();
+
+		mockMvc.perform(post("/api/v1/gmail/reviews/{reviewId}/match", reviewId)
+						.with(authenticatedUser())
+						.with(csrf())
+						.contentType(MediaType.APPLICATION_JSON)
+						.content("""
+								{"applicationId": 999999}
+								"""))
+				.andExpect(status().isNotFound())
+				.andExpect(jsonPath("$.error")
+						.value("Job application 999999 was not found"));
+
+		mockMvc.perform(get("/api/v1/gmail/reviews").with(authenticatedUser()))
+				.andExpect(status().isOk())
+				.andExpect(jsonPath("$[0].reviewId").value(reviewId));
 	}
 
 	@Test
@@ -206,6 +333,21 @@ class GmailScanControllerTests extends PostgresIntegrationTest {
 				"developer@example.com",
 				"private-refresh-token",
 				Set.of("https://www.googleapis.com/auth/gmail.readonly"));
+	}
+
+	private JobApplicationEntity saveApplication(
+			UserEntity user,
+			String companyName,
+			String roleTitle) {
+		CompanyEntity company = companyRepository.save(new CompanyEntity(companyName));
+		return applicationRepository.save(new JobApplicationEntity(
+				user,
+				company,
+				roleTitle,
+				ApplicationStatus.APPLIED,
+				LocalDate.of(2026, 7, 1),
+				"Original notes",
+				LocalDate.of(2026, 7, 1)));
 	}
 
 	private org.springframework.test.web.servlet.request.RequestPostProcessor authenticatedUser() {
