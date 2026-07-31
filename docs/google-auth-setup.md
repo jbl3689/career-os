@@ -216,9 +216,10 @@ Hashing is not suitable here. Password hashes are deliberately one-way, while
 Stage 4 must recover the refresh token to obtain a short-lived access token.
 Encryption is reversible only when the API has the separate key.
 
-On disconnect, the API decrypts the token in memory, asks Google to revoke it,
-and deletes the local `google_connections` row. The Career OS user and their job
-applications are not deleted.
+On disconnect, the API decrypts the token in memory and asks Google to revoke
+it. The local `google_connections` row is deleted even if Google cannot revoke
+an already expired token, so a broken grant cannot prevent reconnection. The
+Career OS user and their job applications are not deleted.
 
 ## Expected outcome
 

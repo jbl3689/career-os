@@ -39,6 +39,9 @@ public class EmailMessageEntity {
 	@Column(nullable = false, columnDefinition = "text")
 	private String subject;
 
+	@Column(nullable = false, length = GmailMessageMetadata.MAXIMUM_EXCERPT_LENGTH)
+	private String excerpt;
+
 	@Column(name = "received_at", nullable = false)
 	private Instant receivedAt;
 
@@ -60,6 +63,7 @@ public class EmailMessageEntity {
 		this.gmailThreadId = message.gmailThreadId();
 		this.sender = message.sender();
 		this.subject = message.subject();
+		this.excerpt = message.excerpt();
 		this.receivedAt = message.receivedAt();
 		this.firstSeenAt = seenAt;
 		this.lastSeenAt = seenAt;
@@ -85,6 +89,10 @@ public class EmailMessageEntity {
 		return subject;
 	}
 
+	public String getExcerpt() {
+		return excerpt;
+	}
+
 	public Instant getReceivedAt() {
 		return receivedAt;
 	}
@@ -101,6 +109,7 @@ public class EmailMessageEntity {
 		this.gmailThreadId = message.gmailThreadId();
 		this.sender = message.sender();
 		this.subject = message.subject();
+		this.excerpt = message.excerpt();
 		this.receivedAt = message.receivedAt();
 		this.lastSeenAt = seenAt;
 	}

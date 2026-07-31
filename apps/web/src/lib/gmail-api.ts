@@ -1,3 +1,4 @@
+import type { CreateJobApplication, JobApplication } from "./applications-api";
 import { apiRequest } from "./api-client";
 
 export type GmailClassification =
@@ -14,11 +15,22 @@ export type GmailEventType =
   | "RECRUITER_CONTACT"
   | "UNKNOWN";
 
+export const gmailEventTypes: GmailEventType[] = [
+  "APPLICATION",
+  "INTERVIEW",
+  "ASSESSMENT",
+  "OFFER",
+  "REJECTION",
+  "RECRUITER_CONTACT",
+  "UNKNOWN",
+];
+
 export type GmailCandidateMessage = {
   gmailMessageId: string;
   gmailThreadId: string;
   sender: string;
   subject: string;
+  excerpt: string;
   receivedAt: string;
   newlyDiscovered: boolean;
   classification: GmailClassification;
@@ -28,7 +40,13 @@ export type GmailCandidateMessage = {
   reviewId: number;
   reviewStatus: "PENDING" | "MATCHED" | "DISMISSED";
   suggestedApplication: GmailApplicationSuggestion | null;
+  applicationDraft: GmailApplicationDraft;
   selectedApplicationId: number | null;
+};
+
+export type GmailApplicationDraft = {
+  companyName: string;
+  roleTitle: string;
 };
 
 export type GmailApplicationSuggestion = {
@@ -78,4 +96,15 @@ export function dismissGmailReview(
     `/api/v1/gmail/reviews/${reviewId}/dismiss`,
     { method: "POST" },
   );
+}
+
+export function createApplicationFromGmailReview(
+  reviewId: number,
+  application: CreateJobApplication,
+): Promise<{ review: GmailCandidateMessage; application: JobApplication }> {
+  return apiRequest(`/api/v1/gmail/reviews/${reviewId}/application`, {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify(application),
+  });
 }

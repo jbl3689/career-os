@@ -84,6 +84,9 @@ public class HttpGmailClient implements GmailClient {
 						.path("/gmail/v1/users/me/messages/{messageId}")
 						.queryParam("format", "metadata")
 						.queryParam("metadataHeaders", "From", "Subject")
+						.queryParam(
+								"fields",
+								"id,threadId,internalDate,snippet,payload/headers")
 						.build(messageId))
 				.header(HttpHeaders.AUTHORIZATION, "Bearer " + accessToken)
 				.retrieve()
@@ -98,6 +101,7 @@ public class HttpGmailClient implements GmailClient {
 				message.threadId(),
 				header(message, "From"),
 				header(message, "Subject"),
+				message.snippet(),
 				Instant.ofEpochMilli(Long.parseLong(message.internalDate())));
 	}
 
@@ -123,6 +127,7 @@ public class HttpGmailClient implements GmailClient {
 			String id,
 			String threadId,
 			String internalDate,
+			String snippet,
 			MessagePayload payload) {
 	}
 

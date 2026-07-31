@@ -92,7 +92,7 @@ class GmailScanControllerTests extends PostgresIntegrationTest {
 	}
 
 	@Test
-	void scansConnectedGmailAndReturnsOnlyCandidateMetadata() throws Exception {
+	void scansConnectedGmailAndReturnsOnlyLimitedCandidateData() throws Exception {
 		UserEntity user = saveUser();
 		connectGmail(user);
 
@@ -108,6 +108,8 @@ class GmailScanControllerTests extends PostgresIntegrationTest {
 				.andExpect(jsonPath("$.candidates[0].sender")
 						.value("Recruiter <recruiter@example.com>"))
 				.andExpect(jsonPath("$.candidates[0].subject").value("Interview invitation"))
+				.andExpect(jsonPath("$.candidates[0].excerpt")
+						.value("We would like to invite you to interview for the role."))
 				.andExpect(jsonPath("$.candidates[0].receivedAt")
 						.value("2026-07-19T14:30:00Z"))
 				.andExpect(jsonPath("$.candidates[0].newlyDiscovered").value(true))
@@ -119,6 +121,8 @@ class GmailScanControllerTests extends PostgresIntegrationTest {
 				.andExpect(jsonPath("$.candidates[0].reviewId").isNumber())
 				.andExpect(jsonPath("$.candidates[0].reviewStatus").value("PENDING"))
 				.andExpect(jsonPath("$.candidates[0].suggestedApplication").doesNotExist())
+				.andExpect(jsonPath("$.candidates[0].applicationDraft.companyName").value(""))
+				.andExpect(jsonPath("$.candidates[0].applicationDraft.roleTitle").value(""))
 				.andExpect(jsonPath("$.candidates[0].selectedApplicationId").doesNotExist())
 				.andExpect(jsonPath("$.candidates[0].body").doesNotExist())
 				.andExpect(jsonPath("$.accessToken").doesNotExist())
@@ -131,6 +135,12 @@ class GmailScanControllerTests extends PostgresIntegrationTest {
 				.contains("subject:interview");
 		assertThat(gmailClient.getReceivedMaximumResults()).isEqualTo(10);
 		assertThat(emailMessageRepository.count()).isEqualTo(1);
+		assertThat(emailMessageRepository.findByUserIdAndGmailMessageId(
+				user.getId(),
+				"message-1"))
+				.get()
+				.extracting(message -> message.getExcerpt())
+				.isEqualTo("We would like to invite you to interview for the role.");
 		assertThat(scanResultRepository.findAll())
 				.singleElement()
 				.satisfies(result -> {
@@ -209,6 +219,51 @@ class GmailScanControllerTests extends PostgresIntegrationTest {
 		mockMvc.perform(get("/api/v1/gmail/reviews").with(authenticatedUser()))
 				.andExpect(status().isOk())
 				.andExpect(jsonPath("$").isEmpty());
+	}
+
+	@Test
+	void createsAnApplicationFromAnUnmatchedReview() throws Exception {
+		UserEntity user = saveUser();
+		connectGmail(user);
+		String scanResponse = mockMvc.perform(post("/api/v1/gmail/scan")
+						.with(authenticatedUser())
+						.with(csrf()))
+				.andReturn()
+				.getResponse()
+				.getContentAsString();
+		long reviewId = objectMapper.readTree(scanResponse)
+				.at("/candidates/0/reviewId")
+				.asLong();
+
+		mockMvc.perform(post("/api/v1/gmail/reviews/{reviewId}/application", reviewId)
+						.with(authenticatedUser())
+						.with(csrf())
+						.contentType(MediaType.APPLICATION_JSON)
+						.content("""
+								{
+								  "companyName": "Acme",
+								  "roleTitle": "Software Engineer",
+								  "status": "APPLIED",
+								  "applicationDate": "2026-07-19",
+								  "notes": ""
+								}
+								"""))
+				.andExpect(status().isOk())
+				.andExpect(jsonPath("$.review.reviewStatus").value("MATCHED"))
+				.andExpect(jsonPath("$.application.companyName").value("Acme"))
+				.andExpect(jsonPath("$.application.roleTitle").value("Software Engineer"))
+				.andExpect(jsonPath("$.application.status").value("APPLIED"));
+
+		assertThat(applicationRepository.findAll())
+				.singleElement()
+				.satisfies(application -> {
+					assertThat(application.getUser().getId()).isEqualTo(user.getId());
+					assertThat(application.getApplicationDate())
+							.isEqualTo(LocalDate.of(2026, 7, 19));
+				});
+		assertThat(jobEventRepository.count()).isEqualTo(1);
+		assertThat(scanResultRepository.findById(reviewId).orElseThrow()
+				.getReviewStatus()).isEqualTo(GmailReviewStatus.MATCHED);
 	}
 
 	@Test

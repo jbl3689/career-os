@@ -1,5 +1,6 @@
 "use client";
 
+import { useState } from "react";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import {
   disconnectGoogleConnection,
@@ -20,6 +21,9 @@ export function GoogleConnectionPanel({
   applications,
 }: GoogleConnectionPanelProps) {
   const queryClient = useQueryClient();
+  const [hiddenScanReviewIds, setHiddenScanReviewIds] = useState<Set<number>>(
+    () => new Set(),
+  );
   const connectionQuery = useQuery({
     queryKey: googleConnectionQueryKeys.connection,
     queryFn: getGoogleConnection,
@@ -27,8 +31,12 @@ export function GoogleConnectionPanel({
   });
   const scanMutation = useMutation({
     mutationFn: scanGmail,
-    onSuccess: () =>
-      queryClient.invalidateQueries({ queryKey: gmailQueryKeys.reviews }),
+    onSuccess: () => {
+      setHiddenScanReviewIds(new Set());
+      return queryClient.invalidateQueries({
+        queryKey: gmailQueryKeys.reviews,
+      });
+    },
   });
   const reviewsQuery = useQuery({
     queryKey: gmailQueryKeys.reviews,
@@ -39,6 +47,7 @@ export function GoogleConnectionPanel({
     mutationFn: disconnectGoogleConnection,
     onSuccess: () => {
       scanMutation.reset();
+      setHiddenScanReviewIds(new Set());
       queryClient.setQueryData(googleConnectionQueryKeys.connection, {
         connected: false,
         gmailAddress: null,
@@ -131,12 +140,21 @@ export function GoogleConnectionPanel({
           applications={applications}
           isPending={reviewsQuery.isPending}
           isError={reviewsQuery.isError}
+          onMarkedNotJobRelated={(reviewId) =>
+            setHiddenScanReviewIds((current) => new Set(current).add(reviewId))
+          }
         />
       ) : null}
 
-      {scanMutation.data ? (
-        <GmailScanResults candidates={scanMutation.data.candidates} />
-      ) : null}
+      {/* {scanMutation.data ? (
+        <GmailScanResults
+          candidates={scanMutation.data.candidates.filter(
+            (candidate) =>
+              candidate.reviewStatus !== "DISMISSED" &&
+              !hiddenScanReviewIds.has(candidate.reviewId),
+          )}
+        />
+      ) : null} */}
 
       {disconnectMutation.isError ? (
         <p className="mt-3 text-sm text-red-700">

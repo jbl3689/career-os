@@ -254,9 +254,9 @@ Deliverables:
 - connect and disconnect controls;
 - no automatic inbox classification yet.
 
-### Stage 4: Manual Gmail scan
+### Stage 4A: Manual Gmail scan foundation
 
-Goal: import likely job-related emails on demand.
+Goal: find, classify, persist, and review likely job-related emails on demand.
 
 Deliverables:
 
@@ -269,7 +269,50 @@ Deliverables:
 - review queue for uncertain results;
 - visible scan status and errors.
 
-### Stage 5: Incremental synchronisation
+This stage proves the ingestion foundation. Linking a reviewed email to an
+application does not, by itself, update the tracker.
+
+### Stage 4B: Email-driven application updates
+
+Goal: turn a reviewed Gmail result into a useful, editable application update.
+
+Deliverables:
+
+- retrieve and display a short excerpt only for candidate messages;
+- show the detected event type, confidence, and explanation in the review flow;
+- let the user mark a message as not job-related and keep it out of later
+  reviews;
+- let the user correct the application and event type before confirmation;
+- create an application from an unmatched review, with editable company and role
+  fields;
+- create one email-sourced timeline event when a review is confirmed;
+- update application status and last activity when the user confirms an
+  appropriate event;
+- prevent the same Gmail message from creating duplicate timeline events;
+- show email-sourced events on the application detail timeline.
+
+Stage 4B should begin with user-confirmed actions. Fully automatic application
+creation or status changes should only be considered after the correction flow
+has shown that classifications are reliable.
+
+### Stage 5: AI-assisted extraction
+
+Goal: improve difficult email extraction after deterministic review-to-update
+behaviour works.
+
+Deliverables:
+
+- structured extraction of company, role, and event type for messages that
+  deterministic rules cannot classify confidently;
+- confidence thresholds and deterministic fallback behaviour;
+- a small evaluation dataset built from corrected review results;
+- cost, prompt-version, model-version, and failure tracking;
+- editable suggestions and no autonomous destructive changes.
+
+An LLM is not required for obvious application confirmations, interviews,
+offers, assessments, or rejections that deterministic rules can identify.
+
+### Stage 6: Incremental synchronisation
 
 Goal: keep the tracker updated without rescanning the entire mailbox.
 
@@ -281,7 +324,10 @@ Deliverables:
 - duplicate prevention;
 - sync history and user-visible status.
 
-### Stage 6: Calendar integration
+Do not add Gmail push notifications unless polling becomes a demonstrated
+limitation.
+
+### Stage 7: Calendar integration
 
 Goal: add interview events from Google Calendar.
 
@@ -291,20 +337,6 @@ Deliverables:
 - calendar-event retrieval;
 - interview event matching;
 - duplicate handling between email and calendar events.
-
-### Stage 7: AI-assisted organisation
-
-Goal: improve classification and summaries after the deterministic system works.
-
-Deliverables:
-
-- structured LLM outputs;
-- confidence thresholds;
-- evaluation dataset;
-- cost logging;
-- prompt and model version tracking;
-- user correction workflow;
-- no autonomous destructive changes.
 
 ### Stage 8: Production deployment
 

@@ -2,7 +2,8 @@
 
 Career OS is a learning-led career assistant. The manual job tracker is durable
 with PostgreSQL, Google authentication and Gmail connection are complete, and
-Stage 4 is adding user-triggered Gmail scanning in small, reviewable slices.
+Stage 4B is turning user-triggered Gmail scan results into understandable,
+reviewable application updates.
 
 ## Requirements
 
@@ -261,6 +262,13 @@ Migration `V6__add_gmail_application_review.sql` adds:
 - an explainable match score and reason;
 - explicit matched and dismissed review states.
 
+Migration `V7__add_email_message_excerpt.sql` adds:
+
+- a normalized Gmail excerpt capped at 500 characters;
+- reclassification of unreviewed scan results after their next manual scan so
+  the excerpt-aware rules can improve them;
+- preservation of already matched or dismissed decisions.
+
 The relationships are:
 
 ```text
@@ -294,7 +302,7 @@ SELECT * FROM companies;
 SELECT * FROM job_applications;
 SELECT * FROM job_events ORDER BY event_date, id;
 SELECT user_id, gmail_address, granted_scopes FROM google_connections;
-SELECT gmail_message_id, subject, first_seen_at, last_seen_at
+SELECT gmail_message_id, subject, excerpt, first_seen_at, last_seen_at
 FROM email_messages ORDER BY received_at DESC;
 SELECT email_message_id, status, classification, event_type,
        confidence_score, classification_reason, suggested_application_id,
@@ -323,28 +331,30 @@ http://localhost:3000/applications for normal local testing.
 /api/v1/auth/logout` invalidates the server-side session.
 
 `GET /api/v1/google-connection` reports whether Gmail is connected without
-returning token data. `DELETE /api/v1/google-connection` revokes Google's grant
-and deletes the encrypted local token. Connecting begins at
+returning token data. `DELETE /api/v1/google-connection` attempts to revoke
+Google's grant and always deletes the encrypted local token, including when the
+grant has already expired or been revoked. Connecting begins at
 `/oauth2/authorization/google-gmail` and is intentionally separate from sign-in.
 
-`POST /api/v1/gmail/scan` starts the first Stage 4 manual scan slice. It:
+`POST /api/v1/gmail/scan` starts a manual Gmail scan. It:
 
 1. decrypts the current user's refresh token inside the API;
 2. exchanges it with Google for a short-lived access token;
 3. searches at most 10 messages from the last year using a small set of
    job-related terms;
-4. retrieves only the Gmail message ID, thread ID, sender, subject, and received
-   time;
-5. stores new candidate metadata and creates its classification record;
-6. applies deterministic rules using sender and subject metadata;
-7. stores the classification, likely event type, rule score, and reason;
-8. updates `last_seen_at` instead of duplicating a message seen in an earlier
+4. retrieves only the Gmail message ID, thread ID, sender, subject, received
+   time, and Gmail's short message snippet;
+5. normalizes and caps the stored excerpt at 500 characters;
+6. stores new candidate metadata and creates its classification record;
+7. applies deterministic rules using the sender, subject, and excerpt;
+8. stores the classification, likely event type, rule score, and reason;
+9. updates `last_seen_at` instead of duplicating a message seen in an earlier
    scan;
-9. conservatively compares the sender and subject with the user's existing
+10. conservatively compares the sender and subject with the user's existing
    company and role names;
-10. stores at most one unambiguous suggested application with a match score and
+11. stores at most one unambiguous suggested application with a match score and
     explanation;
-11. returns candidates with their classification, suggestion, and a
+12. returns candidates with their excerpt, classification, suggestion, and a
     `newlyDiscovered` flag.
 
 The rules recognise job-process terminology and common recruiting-system
@@ -355,14 +365,27 @@ indicator, not a statistically calibrated probability.
 
 `GET /api/v1/gmail/reviews` returns the current user's persisted review queue.
 `POST /api/v1/gmail/reviews/{id}/match` confirms an application selected by the
-user, while `POST /api/v1/gmail/reviews/{id}/dismiss` removes the result from
-the queue. Confirming a match only links the scan result: it does not change the
-application's status, notes, or timeline. If no reliable match is found, the UI
-asks the user to create the application manually and then select it.
+user, while `POST /api/v1/gmail/reviews/{id}/dismiss` records that the result is
+not job-related. The UI immediately removes that message from the review queue
+and visible scan results. Its minimal stored Gmail identifier is retained so a
+later scan cannot rediscover it as new. Confirming a match only links the scan
+result: it does not change the application's status, notes, or timeline. If no
+reliable match is found, the UI proposes a new application using conservative
+rules over the sender, subject, and short excerpt. Company, role, application
+date, and initial status remain editable, and nothing is created until the user
+confirms. Weak company or role guesses are left blank rather than invented.
 
-The current slice deliberately does not retrieve email bodies or automatically
-create or update application data. Refreshing the page clears the most recent
-scan response, but the persisted review queue remains available.
+`POST /api/v1/gmail/reviews/{id}/application` creates the validated application
+and marks its Gmail review as matched in one database transaction. It currently
+creates the normal application-created event only; the distinct email-sourced
+timeline event and confirmed updates to existing applications belong to the
+next Stage 4B slice.
+
+The current slice deliberately does not retrieve complete email bodies or
+attachments and does not silently create or update application data. The
+review queue displays the short excerpt, detected event type, rule score, and
+explanation. Refreshing the page clears the most recent scan response, but the
+persisted review queue remains available.
 
 Google's `messages.list` endpoint initially returns only message and thread IDs,
 so the API follows each capped result with a `messages.get` request using

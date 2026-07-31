@@ -68,11 +68,11 @@ export function ApplicationList({
                       href={`/applications/${application.id}`}
                       className="hover:underline"
                     >
-                      {application.roleTitle}
+                      {application.companyName}
                     </Link>
                   </h3>
                   <p className="mt-1 text-sm text-slate-600">
-                    {application.companyName}
+                    {application.roleTitle}
                   </p>
                 </div>
                 <span className="rounded-full bg-slate-100 px-3 py-1 text-xs font-medium text-slate-700">

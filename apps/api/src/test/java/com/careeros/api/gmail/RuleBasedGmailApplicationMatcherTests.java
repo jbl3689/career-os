@@ -70,6 +70,7 @@ class RuleBasedGmailApplicationMatcherTests {
 				"thread-1",
 				sender,
 				subject,
+				"",
 				Instant.parse("2026-07-19T14:30:00Z"));
 	}
 

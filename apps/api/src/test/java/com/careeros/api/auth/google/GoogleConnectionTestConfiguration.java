@@ -16,18 +16,27 @@ class GoogleConnectionTestConfiguration {
 	static final class RecordingGoogleTokenRevocationClient implements GoogleTokenRevocationClient {
 
 		private String revokedToken;
+		private boolean failRevocation;
 
 		@Override
 		public void revoke(String refreshToken) {
 			this.revokedToken = refreshToken;
+			if (failRevocation) {
+				throw new IllegalStateException("Google rejected the token revocation");
+			}
 		}
 
 		String getRevokedToken() {
 			return revokedToken;
 		}
 
+		void failNextRevocation() {
+			failRevocation = true;
+		}
+
 		void reset() {
 			revokedToken = null;
+			failRevocation = false;
 		}
 	}
 }

@@ -7,11 +7,15 @@ import java.util.TreeSet;
 
 import com.careeros.api.auth.persistence.UserEntity;
 
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
 @Service
 public class GoogleConnectionService {
+
+	private static final Logger LOGGER = LoggerFactory.getLogger(GoogleConnectionService.class);
 
 	private final GoogleConnectionRepository connectionRepository;
 	private final TokenEncryptionService tokenEncryptionService;
@@ -72,12 +76,20 @@ public class GoogleConnectionService {
 								now)));
 	}
 
+	@Transactional
 	public void disconnect(UserEntity user) {
 		connectionRepository.findByUserId(user.getId()).ifPresent(connection -> {
-			String refreshToken = tokenEncryptionService.decrypt(
-					connection.getEncryptedRefreshToken(),
-					user.getId());
-			tokenRevocationClient.revoke(refreshToken);
+			try {
+				String refreshToken = tokenEncryptionService.decrypt(
+						connection.getEncryptedRefreshToken(),
+						user.getId());
+				tokenRevocationClient.revoke(refreshToken);
+			}
+			catch (RuntimeException exception) {
+				LOGGER.warn(
+						"Google token revocation failed for user {}; removing the local Gmail connection",
+						user.getId());
+			}
 			connectionRepository.delete(connection);
 		});
 	}

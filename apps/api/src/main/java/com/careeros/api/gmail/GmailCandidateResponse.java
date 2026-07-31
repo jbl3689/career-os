@@ -7,6 +7,7 @@ public record GmailCandidateResponse(
 		String gmailThreadId,
 		String sender,
 		String subject,
+		String excerpt,
 		Instant receivedAt,
 		boolean newlyDiscovered,
 		GmailClassificationCategory classification,
@@ -16,6 +17,7 @@ public record GmailCandidateResponse(
 		long reviewId,
 		GmailReviewStatus reviewStatus,
 		ApplicationMatchSuggestion suggestedApplication,
+		GmailApplicationDraft applicationDraft,
 		Long selectedApplicationId) {
 
 	static GmailCandidateResponse from(
@@ -28,6 +30,7 @@ public record GmailCandidateResponse(
 				message.gmailThreadId(),
 				message.sender(),
 				message.subject(),
+				message.excerpt(),
 				message.receivedAt(),
 				newlyDiscovered,
 				classification.category(),
@@ -37,6 +40,7 @@ public record GmailCandidateResponse(
 				scanResult.getId(),
 				scanResult.getReviewStatus(),
 				scanResult.matchSuggestion(),
+				GmailApplicationDraft.from(message),
 				scanResult.getSelectedApplicationId());
 	}
 
@@ -48,6 +52,7 @@ public record GmailCandidateResponse(
 				message.getGmailThreadId(),
 				message.getSender(),
 				message.getSubject(),
+				message.getExcerpt(),
 				message.getReceivedAt()), false, scanResult);
 	}
 }

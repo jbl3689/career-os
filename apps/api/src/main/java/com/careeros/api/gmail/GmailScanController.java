@@ -1,5 +1,6 @@
 package com.careeros.api.gmail;
 
+import com.careeros.api.application.CreateJobApplicationRequest;
 import com.careeros.api.auth.CurrentUserService;
 import com.careeros.api.auth.persistence.UserEntity;
 
@@ -62,5 +63,16 @@ public class GmailScanController {
 		return gmailReviewService.dismiss(
 				currentUserService.resolve(oidcUser),
 				reviewId);
+	}
+
+	@PostMapping("/reviews/{reviewId}/application")
+	public CreateApplicationFromGmailReviewResponse createApplication(
+			@AuthenticationPrincipal OidcUser oidcUser,
+			@PathVariable long reviewId,
+			@Valid @RequestBody CreateJobApplicationRequest request) {
+		return gmailReviewService.createApplication(
+				currentUserService.resolve(oidcUser),
+				reviewId,
+				request);
 	}
 }

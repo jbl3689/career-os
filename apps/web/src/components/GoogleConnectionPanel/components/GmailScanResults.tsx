@@ -1,37 +1,19 @@
 import type { GmailCandidateMessage } from "@/lib/gmail-api";
+import {
+  formatGmailReceivedAt,
+  gmailClassificationLabels,
+  gmailEventTypeLabels,
+} from "../GmailDisplay";
 
 type GmailScanResultsProps = {
   candidates: GmailCandidateMessage[];
 };
 
-function formatReceivedAt(value: string): string {
-  return new Intl.DateTimeFormat("en-GB", {
-    dateStyle: "medium",
-    timeStyle: "short",
-  }).format(new Date(value));
-}
-
-const classificationLabels = {
-  JOB_RELATED: "Likely job-related",
-  NOT_JOB_RELATED: "Not job-related",
-  UNCERTAIN: "Needs review",
-} as const;
-
-const eventTypeLabels = {
-  APPLICATION: "Application",
-  INTERVIEW: "Interview",
-  ASSESSMENT: "Assessment",
-  OFFER: "Offer",
-  REJECTION: "Rejection",
-  RECRUITER_CONTACT: "Recruiter contact",
-  UNKNOWN: "Unknown event",
-} as const;
-
 export function GmailScanResults({ candidates }: GmailScanResultsProps) {
   if (candidates.length === 0) {
     return (
       <p className="mt-4 text-sm text-slate-600">
-        No candidate job messages were found in the current search window.
+        There are no job-related messages to show from this scan.
       </p>
     );
   }
@@ -56,11 +38,16 @@ export function GmailScanResults({ candidates }: GmailScanResultsProps) {
               {candidate.sender || "Unknown sender"}
             </p>
             <p className="mt-1 text-xs text-slate-500">
-              {formatReceivedAt(candidate.receivedAt)}
+              {formatGmailReceivedAt(candidate.receivedAt)}
             </p>
+            {candidate.excerpt ? (
+              <blockquote className="mt-2 border-l-2 border-slate-200 pl-3 text-sm text-slate-600">
+                {candidate.excerpt}
+              </blockquote>
+            ) : null}
             <p className="mt-2 text-sm text-slate-700">
-              {classificationLabels[candidate.classification]} ·{" "}
-              {eventTypeLabels[candidate.eventType]} · Rule score{" "}
+              {gmailClassificationLabels[candidate.classification]} ·{" "}
+              {gmailEventTypeLabels[candidate.eventType]} · Rule score{" "}
               {candidate.confidenceScore}/100
             </p>
             <p className="mt-1 text-xs text-slate-500">
@@ -76,8 +63,9 @@ export function GmailScanResults({ candidates }: GmailScanResultsProps) {
         ))}
       </ul>
       <p className="mt-3 text-xs text-slate-500">
-        Candidate metadata is stored for classification and duplicate
-        prevention. No applications have been changed.
+        Candidate metadata and a short Gmail excerpt are stored for
+        classification and duplicate prevention. Full email bodies and
+        attachments are not stored. No applications have been changed.
       </p>
     </div>
   );

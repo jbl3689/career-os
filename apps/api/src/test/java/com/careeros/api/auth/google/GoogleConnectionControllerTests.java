@@ -117,6 +117,26 @@ class GoogleConnectionControllerTests extends PostgresIntegrationTest {
 	}
 
 	@Test
+	void deletesTheLocalConnectionWhenGoogleCannotRevokeTheToken() throws Exception {
+		UserEntity user = saveUser();
+		connectionService.connect(
+				user,
+				"google-subject",
+				"developer@example.com",
+				"expired-refresh-token",
+				Set.of("https://www.googleapis.com/auth/gmail.readonly"));
+		tokenRevocationClient.failNextRevocation();
+
+		mockMvc.perform(delete("/api/v1/google-connection")
+						.with(authenticatedUser())
+						.with(csrf()))
+				.andExpect(status().isNoContent());
+
+		assertThat(tokenRevocationClient.getRevokedToken()).isEqualTo("expired-refresh-token");
+		assertThat(connectionRepository.findByUserId(user.getId())).isEmpty();
+	}
+
+	@Test
 	void protectsDisconnectWithCsrf() throws Exception {
 		mockMvc.perform(delete("/api/v1/google-connection").with(authenticatedUser()))
 				.andExpect(status().isForbidden());

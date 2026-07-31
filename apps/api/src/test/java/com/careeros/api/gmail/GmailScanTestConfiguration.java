@@ -84,6 +84,7 @@ class GmailScanTestConfiguration {
 					"thread-1",
 					"Recruiter <recruiter@example.com>",
 					"Interview invitation",
+					"We would like to invite you to interview for the role.",
 					Instant.parse("2026-07-19T14:30:00Z")));
 		}
 

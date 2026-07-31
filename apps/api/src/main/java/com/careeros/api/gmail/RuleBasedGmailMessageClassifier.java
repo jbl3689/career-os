@@ -51,6 +51,9 @@ public class RuleBasedGmailMessageClassifier implements GmailMessageClassifier {
 
 	private static final List<String> REJECTION_TERMS = List.of(
 			"not moving forward",
+			"not to move forward",
+			"will not be moving forward",
+			"decided not to proceed",
 			"other candidates",
 			"position has been filled",
 			"unsuccessful application");
@@ -70,7 +73,9 @@ public class RuleBasedGmailMessageClassifier implements GmailMessageClassifier {
 	public GmailMessageClassification classify(GmailMessageMetadata message) {
 		String sender = normalize(message.sender());
 		String subject = normalize(message.subject());
-		String searchableText = sender + " " + subject;
+		String excerpt = normalize(message.excerpt());
+		String messageText = subject + " " + excerpt;
+		String searchableText = sender + " " + messageText;
 
 		int positiveScore = 0;
 		int negativeScore = 0;
@@ -78,7 +83,7 @@ public class RuleBasedGmailMessageClassifier implements GmailMessageClassifier {
 		boolean applicantTrackingSystem =
 				containsAny(sender, APPLICANT_TRACKING_SYSTEMS);
 		boolean applicationConfirmation =
-				containsAny(subject, APPLICATION_CONFIRMATION_TERMS);
+				containsAny(messageText, APPLICATION_CONFIRMATION_TERMS);
 
 		if (applicantTrackingSystem) {
 			positiveScore += 4;
@@ -95,11 +100,11 @@ public class RuleBasedGmailMessageClassifier implements GmailMessageClassifier {
 			positiveScore += 4;
 			employmentSpecificScore += 4;
 		}
-		if (containsAny(subject, OFFER_TERMS)) {
+		if (containsAny(messageText, OFFER_TERMS)) {
 			positiveScore += 4;
 			employmentSpecificScore += 4;
 		}
-		if (containsAny(subject, REJECTION_TERMS)) {
+		if (containsAny(messageText, REJECTION_TERMS)) {
 			positiveScore += 4;
 			employmentSpecificScore += 4;
 		}
@@ -145,10 +150,10 @@ public class RuleBasedGmailMessageClassifier implements GmailMessageClassifier {
 	}
 
 	private GmailEventType eventType(String subject, String searchableText) {
-		if (containsAny(subject, REJECTION_TERMS)) {
+		if (containsAny(searchableText, REJECTION_TERMS)) {
 			return GmailEventType.REJECTION;
 		}
-		if (containsAny(subject, OFFER_TERMS)) {
+		if (containsAny(searchableText, OFFER_TERMS)) {
 			return GmailEventType.OFFER;
 		}
 		if (containsAny(searchableText, INTERVIEW_TERMS)) {
@@ -157,7 +162,7 @@ public class RuleBasedGmailMessageClassifier implements GmailMessageClassifier {
 		if (containsAny(searchableText, ASSESSMENT_TERMS)) {
 			return GmailEventType.ASSESSMENT;
 		}
-		if (containsAny(subject, APPLICATION_CONFIRMATION_TERMS)
+		if (containsAny(searchableText, APPLICATION_CONFIRMATION_TERMS)
 				|| subject.contains("application")) {
 			return GmailEventType.APPLICATION;
 		}

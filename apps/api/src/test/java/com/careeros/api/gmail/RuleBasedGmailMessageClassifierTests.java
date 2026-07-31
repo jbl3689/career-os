@@ -15,7 +15,8 @@ class RuleBasedGmailMessageClassifierTests {
 	void classifiesInterviewMessagesAsJobRelated() {
 		GmailMessageClassification result = classifier.classify(message(
 				"Recruiter <recruiter@example.com>",
-				"Interview invitation for Software Engineer role"));
+				"Interview invitation for Software Engineer role",
+				""));
 
 		assertThat(result.category()).isEqualTo(GmailClassificationCategory.JOB_RELATED);
 		assertThat(result.eventType()).isEqualTo(GmailEventType.INTERVIEW);
@@ -26,7 +27,8 @@ class RuleBasedGmailMessageClassifierTests {
 	void classifiesApplicantTrackingSystemMessagesAsJobRelated() {
 		GmailMessageClassification result = classifier.classify(message(
 				"notifications@company.greenhouse.io",
-				"Application update"));
+				"Application update",
+				""));
 
 		assertThat(result.category()).isEqualTo(GmailClassificationCategory.JOB_RELATED);
 		assertThat(result.eventType()).isEqualTo(GmailEventType.APPLICATION);
@@ -36,7 +38,8 @@ class RuleBasedGmailMessageClassifierTests {
 	void rejectsVisaApplicationFalsePositives() {
 		GmailMessageClassification result = classifier.classify(message(
 				"UK Visas and Immigration <notifications@example.gov.uk>",
-				"Your visa application has been received"));
+				"Your visa application has been received",
+				""));
 
 		assertThat(result.category()).isEqualTo(GmailClassificationCategory.NOT_JOB_RELATED);
 		assertThat(result.eventType()).isEqualTo(GmailEventType.UNKNOWN);
@@ -46,7 +49,8 @@ class RuleBasedGmailMessageClassifierTests {
 	void keepsGenericApplicationMessagesUncertain() {
 		GmailMessageClassification result = classifier.classify(message(
 				"notifications@example.com",
-				"Application update"));
+				"Application update",
+				""));
 
 		assertThat(result.category()).isEqualTo(GmailClassificationCategory.UNCERTAIN);
 		assertThat(result.eventType()).isEqualTo(GmailEventType.APPLICATION);
@@ -56,18 +60,35 @@ class RuleBasedGmailMessageClassifierTests {
 	void keepsMessagesWithJobAndVisaSignalsUncertain() {
 		GmailMessageClassification result = classifier.classify(message(
 				"Recruiter <recruiter@example.com>",
-				"Visa requirements before your interview"));
+				"Visa requirements before your interview",
+				""));
 
 		assertThat(result.category()).isEqualTo(GmailClassificationCategory.UNCERTAIN);
 		assertThat(result.eventType()).isEqualTo(GmailEventType.INTERVIEW);
 	}
 
-	private GmailMessageMetadata message(String sender, String subject) {
+	@Test
+	void identifiesARejectionFromTheExcerptWhenTheSubjectIsVague() {
+		GmailMessageClassification result = classifier.classify(message(
+				"Acme Talent <talent@acme.example>",
+				"An update on your application",
+				"We have decided not to move forward with your application."));
+
+		assertThat(result.category()).isEqualTo(GmailClassificationCategory.JOB_RELATED);
+		assertThat(result.eventType()).isEqualTo(GmailEventType.REJECTION);
+		assertThat(result.reason()).isEqualTo("Application rejection terminology was found");
+	}
+
+	private GmailMessageMetadata message(
+			String sender,
+			String subject,
+			String excerpt) {
 		return new GmailMessageMetadata(
 				"message-1",
 				"thread-1",
 				sender,
 				subject,
+				excerpt,
 				Instant.parse("2026-07-19T14:30:00Z"));
 	}
 }
