@@ -10,6 +10,7 @@ public record JobApplicationResponse(
 		String roleTitle,
 		ApplicationStatus status,
 		LocalDate applicationDate,
+		String source,
 		String notes,
 		LocalDate lastActivityDate) {
 
@@ -20,6 +21,7 @@ public record JobApplicationResponse(
 				application.getRoleTitle(),
 				application.getStatus(),
 				application.getApplicationDate(),
+				application.getSource(),
 				application.getNotes(),
 				application.getLastActivityDate());
 	}

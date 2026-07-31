@@ -2,6 +2,7 @@
 
 import { useState } from "react";
 import { useMutation, useQueryClient } from "@tanstack/react-query";
+import { ApplicationSourceSelect } from "@/components/ApplicationSourceSelect";
 import {
   applicationStatusLabels,
   applicationStatuses,
@@ -101,6 +102,7 @@ function GmailReviewItem({
   const [applicationDate, setApplicationDate] = useState(
     review.receivedAt.slice(0, 10),
   );
+  const [source, setSource] = useState("");
   const [eventType, setEventType] = useState(review.eventType);
   const [resultingStatus, setResultingStatus] = useState<ApplicationStatus>(
     getSuggestedStatus(review.eventType, suggestedId, applications),
@@ -118,6 +120,7 @@ function GmailReviewItem({
         roleTitle,
         status: resultingStatus,
         applicationDate,
+        source,
         notes: "",
       }),
     onSuccess: () => {
@@ -297,6 +300,13 @@ function GmailReviewItem({
             disabled={isSaving}
             className="mt-1 w-full rounded-md border border-slate-300 bg-white px-3 py-2 text-sm"
           />
+          <div className="mt-3">
+            <ApplicationSourceSelect
+              id={`gmail-review-source-${review.reviewId}`}
+              value={source}
+              onChange={setSource}
+            />
+          </div>
         </div>
       ) : null}
       <label

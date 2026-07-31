@@ -43,6 +43,9 @@ public class JobApplicationEntity {
 	@Column(name = "application_date", nullable = false)
 	private LocalDate applicationDate;
 
+	@Column(nullable = false, length = 100)
+	private String source;
+
 	@Column(nullable = false, length = 5000)
 	private String notes;
 
@@ -58,6 +61,7 @@ public class JobApplicationEntity {
 			String roleTitle,
 			ApplicationStatus status,
 			LocalDate applicationDate,
+			String source,
 			String notes,
 			LocalDate lastActivityDate) {
 		this.user = user;
@@ -65,6 +69,7 @@ public class JobApplicationEntity {
 		this.roleTitle = roleTitle;
 		this.status = status;
 		this.applicationDate = applicationDate;
+		this.source = source;
 		this.notes = notes;
 		this.lastActivityDate = lastActivityDate;
 	}
@@ -93,6 +98,10 @@ public class JobApplicationEntity {
 		return applicationDate;
 	}
 
+	public String getSource() {
+		return source;
+	}
+
 	public String getNotes() {
 		return notes;
 	}
@@ -101,8 +110,13 @@ public class JobApplicationEntity {
 		return lastActivityDate;
 	}
 
-	public void update(ApplicationStatus status, String notes, LocalDate lastActivityDate) {
+	public void update(
+			ApplicationStatus status,
+			String source,
+			String notes,
+			LocalDate lastActivityDate) {
 		this.status = status;
+		this.source = source;
 		this.notes = notes;
 		this.lastActivityDate = lastActivityDate;
 	}

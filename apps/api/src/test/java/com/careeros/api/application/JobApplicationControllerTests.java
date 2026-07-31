@@ -69,6 +69,7 @@ class JobApplicationControllerTests extends PostgresIntegrationTest {
 				  "roleTitle": "Software Engineer",
 				  "status": "APPLIED",
 				  "applicationDate": "2026-07-16",
+				  "source": "LinkedIn job post",
 				  "notes": "Applied through the company website."
 				}
 				""";
@@ -85,6 +86,7 @@ class JobApplicationControllerTests extends PostgresIntegrationTest {
 				.andExpect(jsonPath("$.roleTitle").value("Software Engineer"))
 				.andExpect(jsonPath("$.status").value("APPLIED"))
 				.andExpect(jsonPath("$.applicationDate").value("2026-07-16"))
+				.andExpect(jsonPath("$.source").value("LinkedIn job post"))
 				.andExpect(jsonPath("$.lastActivityDate").value("2026-07-16"));
 	}
 
@@ -141,6 +143,7 @@ class JobApplicationControllerTests extends PostgresIntegrationTest {
 		String requestBody = """
 				{
 				  "status": "INTERVIEWING",
+				  "source": "Indeed",
 				  "notes": "First interview booked."
 				}
 				""";
@@ -152,6 +155,7 @@ class JobApplicationControllerTests extends PostgresIntegrationTest {
 						.content(requestBody))
 				.andExpect(status().isOk())
 				.andExpect(jsonPath("$.status").value("INTERVIEWING"))
+				.andExpect(jsonPath("$.source").value("Indeed"))
 				.andExpect(jsonPath("$.notes").value("First interview booked."))
 				.andExpect(jsonPath("$.lastActivityDate").exists());
 	}
@@ -202,6 +206,7 @@ class JobApplicationControllerTests extends PostgresIntegrationTest {
 				  "roleTitle": "Software Engineer",
 				  "status": "APPLIED",
 				  "applicationDate": "2026-07-16",
+				  "source": "LinkedIn job post",
 				  "notes": "Applied through the company website."
 				}
 				""";

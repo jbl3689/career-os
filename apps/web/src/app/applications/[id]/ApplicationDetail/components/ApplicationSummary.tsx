@@ -36,6 +36,14 @@ export function ApplicationSummary({
             {formatDate(application.lastActivityDate)}
           </dd>
         </div>
+        <div>
+          <dt className="text-sm font-medium text-slate-600">
+            Application source
+          </dt>
+          <dd className="mt-1 text-slate-950">
+            {application.source || "Not specified"}
+          </dd>
+        </div>
       </dl>
     </>
   );

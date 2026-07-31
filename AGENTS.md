@@ -37,7 +37,7 @@ yet create enough product value. The current goal is:
 
 ### Stage 4A progress
 
-- complete: manual scan using token refresh, a capped recent
+- complete: manual scan using token refresh, a paginated three-month
   Gmail search, and minimal candidate metadata;
 - complete: persisted email-message and scan-result schema;
 - complete: idempotent storage keyed by user and Gmail message ID;

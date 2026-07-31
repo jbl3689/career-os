@@ -15,11 +15,11 @@ import org.springframework.stereotype.Service;
 public class GmailScanService {
 
 	static final String CANDIDATE_QUERY =
-			"newer_than:1y "
+			"newer_than:3m "
 			+ "(subject:application OR subject:interview OR subject:assessment "
 			+ "OR subject:offer OR subject:rejection OR subject:recruiter "
 			+ "OR \"thanks for applying\" OR \"thank you for applying\")";
-	static final int MAXIMUM_RESULTS = 10;
+	static final int RESULTS_PER_PAGE = 500;
 
 	private final GoogleConnectionService connectionService;
 	private final GoogleAccessTokenClient accessTokenClient;
@@ -48,7 +48,7 @@ public class GmailScanService {
 			List<GmailMessageMetadata> candidates = gmailClient.findCandidateMessages(
 					accessToken,
 					CANDIDATE_QUERY,
-					MAXIMUM_RESULTS);
+					RESULTS_PER_PAGE);
 			Instant scannedAt = Instant.now(clock);
 			List<GmailCandidateResponse> persistedCandidates =
 					persistenceService.persistCandidates(user, candidates, scannedAt);

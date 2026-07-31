@@ -14,7 +14,7 @@ export function ApplicationDashboard() {
   });
 
   return (
-    <main className="mx-auto w-full max-w-5xl px-6 py-10">
+    <main className="w-full px-6 py-10">
       <header>
         <p className="text-sm font-semibold uppercase tracking-wide text-sky-700">
           Career OS
@@ -29,15 +29,15 @@ export function ApplicationDashboard() {
 
       <GoogleConnectionPanel applications={applicationsQuery.data ?? []} />
 
-      <div className="mt-8 grid gap-8 lg:grid-cols-[minmax(0,1fr)_22rem]">
+      <div className="mt-8">
         <ApplicationList
           applications={applicationsQuery.data ?? []}
           isPending={applicationsQuery.isPending}
           isError={applicationsQuery.isError}
           onRetry={() => applicationsQuery.refetch()}
         />
-        <CreateApplicationForm />
       </div>
+      <CreateApplicationForm />
     </main>
   );
 }

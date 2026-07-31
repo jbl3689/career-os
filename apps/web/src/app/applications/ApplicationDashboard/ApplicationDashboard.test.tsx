@@ -26,6 +26,7 @@ const application: JobApplication = {
   roleTitle: "Software Engineer",
   status: "APPLIED",
   applicationDate: "2026-07-16",
+  source: "LinkedIn job post",
   notes: "Applied through the company website.",
   lastActivityDate: "2026-07-16",
 };
@@ -51,11 +52,49 @@ describe("ApplicationDashboard", () => {
     renderWithQuery(<ApplicationDashboard />);
 
     const applicationLink = await screen.findByRole("link", {
-      name: "Software Engineer",
+      name: "Acme Ltd",
     });
     expect(applicationLink.getAttribute("href")).toBe("/applications/1");
-    expect(screen.getByText("Acme Ltd")).toBeDefined();
-    expect(screen.getByText("Applied", { selector: "span" })).toBeDefined();
+    expect(screen.getByText("Software Engineer")).toBeDefined();
+    expect(
+      screen.getByRole("heading", { name: "Applied" }),
+    ).toBeDefined();
+    expect(screen.getByLabelText("1 applications")).toBeDefined();
+    expect(screen.getAllByText("No applications")).toHaveLength(2);
+    expect(
+      screen.queryByRole("heading", { name: "Rejected" }),
+    ).toBeNull();
+  });
+
+  it("shows and hides rejected and withdrawn applications", async () => {
+    vi.mocked(listApplications).mockResolvedValue([
+      application,
+      {
+        ...application,
+        id: 2,
+        companyName: "Example Corp",
+        roleTitle: "Frontend Engineer",
+        status: "REJECTED",
+      },
+    ]);
+
+    renderWithQuery(<ApplicationDashboard />);
+
+    const showClosedButton = await screen.findByRole("button", {
+      name: "Show rejected and withdrawn",
+    });
+    expect(screen.queryByText("Example Corp")).toBeNull();
+
+    fireEvent.click(showClosedButton);
+
+    expect(screen.getByText("Example Corp")).toBeDefined();
+    expect(
+      screen.getByRole("heading", { name: "Rejected" }),
+    ).toBeDefined();
+    fireEvent.click(
+      screen.getByRole("button", { name: "Hide rejected and withdrawn" }),
+    );
+    expect(screen.queryByText("Example Corp")).toBeNull();
   });
 
   it("creates an application and adds it to the list", async () => {
@@ -74,6 +113,9 @@ describe("ApplicationDashboard", () => {
     fireEvent.change(screen.getByLabelText("Application date"), {
       target: { value: "2026-07-16" },
     });
+    fireEvent.change(screen.getByLabelText("Application source"), {
+      target: { value: "LinkedIn job post" },
+    });
     fireEvent.change(screen.getByLabelText("Notes"), {
       target: { value: "Applied through the company website." },
     });
@@ -87,11 +129,12 @@ describe("ApplicationDashboard", () => {
         roleTitle: "Software Engineer",
         status: "APPLIED",
         applicationDate: "2026-07-16",
+        source: "LinkedIn job post",
         notes: "Applied through the company website.",
       });
     });
     expect(
-      await screen.findByRole("link", { name: "Software Engineer" }),
+      await screen.findByRole("link", { name: "Acme Ltd" }),
     ).toBeDefined();
     expect(screen.getByText("Software Engineer was added.")).toBeDefined();
   });

@@ -1,6 +1,7 @@
 package com.careeros.api.gmail;
 
 import java.time.Instant;
+import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.List;
 
@@ -22,34 +23,43 @@ public class HttpGmailClient implements GmailClient {
 	private final RestClient restClient;
 
 	public HttpGmailClient() {
-		this.restClient = RestClient.builder()
+		this(RestClient.builder()
 				.baseUrl("https://gmail.googleapis.com")
-				.build();
+				.build());
+	}
+
+	HttpGmailClient(RestClient restClient) {
+		this.restClient = restClient;
 	}
 
 	@Override
 	public List<GmailMessageMetadata> findCandidateMessages(
 			String accessToken,
 			String query,
-			int maximumResults) {
+			int resultsPerPage) {
 		try {
-			MessageListResponse response = restClient.get()
-					.uri(uriBuilder -> uriBuilder
-							.path("/gmail/v1/users/me/messages")
-							.queryParam("q", query)
-							.queryParam("maxResults", maximumResults)
-							.build())
-					.header(HttpHeaders.AUTHORIZATION, "Bearer " + accessToken)
-					.retrieve()
-					.body(MessageListResponse.class);
+			List<GmailMessageMetadata> messages = new ArrayList<>();
+			String pageToken = null;
 
-			if (response == null || response.messages() == null) {
-				return List.of();
+			do {
+				MessageListResponse response = listMessages(
+						accessToken,
+						query,
+						resultsPerPage,
+						pageToken);
+				if (response == null) {
+					break;
+				}
+				if (response.messages() != null) {
+					response.messages().stream()
+							.map(message -> getMetadata(accessToken, message.id()))
+							.forEach(messages::add);
+				}
+				pageToken = response.nextPageToken();
 			}
+			while (pageToken != null && !pageToken.isBlank());
 
-			return response.messages().stream()
-					.map(message -> getMetadata(accessToken, message.id()))
-					.toList();
+			return List.copyOf(messages);
 		}
 		catch (RestClientResponseException exception) {
 			LOGGER.warn(
@@ -65,6 +75,27 @@ public class HttpGmailClient implements GmailClient {
 					"Google could not complete the Gmail scan",
 					exception);
 		}
+	}
+
+	private MessageListResponse listMessages(
+			String accessToken,
+			String query,
+			int resultsPerPage,
+			String pageToken) {
+		return restClient.get()
+				.uri(uriBuilder -> {
+					var builder = uriBuilder
+							.path("/gmail/v1/users/me/messages")
+							.queryParam("q", query)
+							.queryParam("maxResults", resultsPerPage);
+					if (pageToken != null) {
+						builder.queryParam("pageToken", pageToken);
+					}
+					return builder.build();
+				})
+				.header(HttpHeaders.AUTHORIZATION, "Bearer " + accessToken)
+				.retrieve()
+				.body(MessageListResponse.class);
 	}
 
 	private String messageFor(HttpStatusCode status) {
@@ -117,7 +148,9 @@ public class HttpGmailClient implements GmailClient {
 				.orElse("");
 	}
 
-	private record MessageListResponse(List<MessageReference> messages) {
+	private record MessageListResponse(
+			List<MessageReference> messages,
+			String nextPageToken) {
 	}
 
 	private record MessageReference(String id, String threadId) {

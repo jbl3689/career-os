@@ -47,6 +47,7 @@ public class JobApplicationService {
 	@Transactional
 	public JobApplicationResponse createApplication(UserEntity user, CreateJobApplicationRequest request) {
 		String companyName = request.companyName().trim();
+		String source = request.source() == null ? "" : request.source().trim();
 		String notes = request.notes() == null ? "" : request.notes().trim();
 		CompanyEntity company = companyRepository.findByName(companyName)
 				.orElseGet(() -> companyRepository.save(new CompanyEntity(companyName)));
@@ -56,6 +57,7 @@ public class JobApplicationService {
 				request.roleTitle().trim(),
 				request.status(),
 				request.applicationDate(),
+				source,
 				notes,
 				request.applicationDate()));
 		eventRepository.save(new JobEventEntity(
@@ -79,10 +81,13 @@ public class JobApplicationService {
 		JobApplicationEntity application = findApplication(user, id);
 		ApplicationStatus previousStatus = application.getStatus();
 		String previousNotes = application.getNotes();
+		String source = request.source() == null
+				? application.getSource()
+				: request.source().trim();
 		String notes = request.notes() == null ? previousNotes : request.notes().trim();
 		LocalDate eventDate = LocalDate.now(clock);
 
-		application.update(request.status(), notes, eventDate);
+		application.update(request.status(), source, notes, eventDate);
 		applicationRepository.save(application);
 
 		if (previousStatus != request.status()) {

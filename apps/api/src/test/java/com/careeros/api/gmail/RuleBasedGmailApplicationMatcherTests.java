@@ -88,6 +88,7 @@ class RuleBasedGmailApplicationMatcherTests {
 				ApplicationStatus.APPLIED,
 				LocalDate.of(2026, 7, 1),
 				"",
+				"",
 				LocalDate.of(2026, 7, 1));
 	}
 }

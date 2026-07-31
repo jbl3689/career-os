@@ -92,7 +92,7 @@ class GmailScanControllerTests extends PostgresIntegrationTest {
 	}
 
 	@Test
-	void scansConnectedGmailAndReturnsOnlyLimitedCandidateData() throws Exception {
+	void scansConnectedGmailAndReturnsOnlyRequiredCandidateData() throws Exception {
 		UserEntity user = saveUser();
 		connectGmail(user);
 
@@ -131,9 +131,9 @@ class GmailScanControllerTests extends PostgresIntegrationTest {
 		assertThat(accessTokenClient.getReceivedRefreshToken()).isEqualTo("private-refresh-token");
 		assertThat(gmailClient.getReceivedAccessToken()).isEqualTo("temporary-access-token");
 		assertThat(gmailClient.getReceivedQuery())
-				.contains("newer_than:1y")
+				.contains("newer_than:3m")
 				.contains("subject:interview");
-		assertThat(gmailClient.getReceivedMaximumResults()).isEqualTo(10);
+		assertThat(gmailClient.getReceivedMaximumResults()).isEqualTo(500);
 		assertThat(emailMessageRepository.count()).isEqualTo(1);
 		assertThat(emailMessageRepository.findByUserIdAndGmailMessageId(
 				user.getId(),
@@ -401,6 +401,7 @@ class GmailScanControllerTests extends PostgresIntegrationTest {
 				roleTitle,
 				ApplicationStatus.APPLIED,
 				LocalDate.of(2026, 7, 1),
+				"",
 				"Original notes",
 				LocalDate.of(2026, 7, 1)));
 	}

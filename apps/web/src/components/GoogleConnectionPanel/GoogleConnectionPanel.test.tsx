@@ -88,36 +88,38 @@ describe("GoogleConnectionPanel", () => {
     ).toBeDefined();
   });
 
-  it("manually scans Gmail and shows persisted candidate metadata", async () => {
+  it("manually scans Gmail and refreshes the persisted review queue", async () => {
+    const review = {
+      gmailMessageId: "message-1",
+      gmailThreadId: "thread-1",
+      sender: "Recruiter <recruiter@example.com>",
+      subject: "Interview invitation",
+      excerpt: "We would like to invite you to interview for the role.",
+      receivedAt: "2026-07-19T14:30:00Z",
+      newlyDiscovered: true,
+      classification: "JOB_RELATED" as const,
+      eventType: "INTERVIEW" as const,
+      confidenceScore: 95,
+      classificationReason: "Interview terminology was found",
+      reviewId: 12,
+      reviewStatus: "PENDING" as const,
+      suggestedApplication: null,
+      applicationDraft: { companyName: "", roleTitle: "" },
+      selectedApplicationId: null,
+    };
     vi.mocked(getGoogleConnection).mockResolvedValue({
       connected: true,
       gmailAddress: "developer@example.com",
       connectedAt: "2026-07-20T10:00:00Z",
     });
+    vi.mocked(listGmailReviews)
+      .mockResolvedValueOnce([])
+      .mockResolvedValue([review]);
     vi.mocked(scanGmail).mockResolvedValue({
       scannedAt: "2026-07-20T10:05:00Z",
       candidatesFound: 1,
       newCandidatesFound: 1,
-      candidates: [
-        {
-          gmailMessageId: "message-1",
-          gmailThreadId: "thread-1",
-          sender: "Recruiter <recruiter@example.com>",
-          subject: "Interview invitation",
-          excerpt: "We would like to invite you to interview for the role.",
-          receivedAt: "2026-07-19T14:30:00Z",
-          newlyDiscovered: true,
-          classification: "JOB_RELATED",
-          eventType: "INTERVIEW",
-          confidenceScore: 95,
-          classificationReason: "Interview terminology was found",
-          reviewId: 12,
-          reviewStatus: "PENDING",
-          suggestedApplication: null,
-          applicationDraft: { companyName: "", roleTitle: "" },
-          selectedApplicationId: null,
-        },
-      ],
+      candidates: [review],
     });
 
     renderWithQuery(<GoogleConnectionPanel applications={[]} />);
@@ -125,7 +127,9 @@ describe("GoogleConnectionPanel", () => {
     fireEvent.click(await screen.findByRole("button", { name: "Scan Gmail" }));
 
     expect(await screen.findByText("Interview invitation")).toBeDefined();
-    expect(screen.getByText("Waiting for review")).toBeDefined();
+    expect(
+      screen.getByRole("heading", { name: "Waiting for review (1)" }),
+    ).toBeDefined();
     expect(screen.getByText("Recruiter <recruiter@example.com>")).toBeDefined();
     expect(
       screen.getByText(
@@ -134,12 +138,8 @@ describe("GoogleConnectionPanel", () => {
     ).toBeDefined();
     expect(
       screen.getByText(
-        "Candidate metadata and a short Gmail excerpt are stored for classification and duplicate prevention. Full email bodies and attachments are not stored. No applications have been changed.",
+        "Detected: Interview · Likely job-related · Rule score 95/100",
       ),
-    ).toBeDefined();
-    expect(screen.getByText("New")).toBeDefined();
-    expect(
-      screen.getByText("Likely job-related · Interview · Rule score 95/100"),
     ).toBeDefined();
     expect(screen.getByText("Interview terminology was found")).toBeDefined();
   });
@@ -171,14 +171,7 @@ describe("GoogleConnectionPanel", () => {
     });
     vi.mocked(listGmailReviews)
       .mockResolvedValueOnce([review])
-      .mockResolvedValueOnce([review])
       .mockResolvedValue([]);
-    vi.mocked(scanGmail).mockResolvedValue({
-      scannedAt: "2026-07-20T10:05:00Z",
-      candidatesFound: 1,
-      newCandidatesFound: 1,
-      candidates: [review],
-    });
     vi.mocked(dismissGmailReview).mockResolvedValue({
       ...review,
       reviewStatus: "DISMISSED",
@@ -186,15 +179,16 @@ describe("GoogleConnectionPanel", () => {
 
     renderWithQuery(<GoogleConnectionPanel applications={[]} />);
 
-    fireEvent.click(await screen.findByRole("button", { name: "Scan Gmail" }));
-    fireEvent.click(screen.getByRole("button", { name: "Not job-related" }));
+    fireEvent.click(
+      await screen.findByRole("button", { name: "Not job-related" }),
+    );
 
     await waitFor(() => {
       expect(dismissGmailReview).toHaveBeenCalledWith(20);
     });
     expect(
       screen.getByText(
-        "There are no job-related messages to show from this scan.",
+        "There are no Gmail messages waiting for review.",
       ),
     ).toBeDefined();
   });
@@ -251,6 +245,7 @@ describe("GoogleConnectionPanel", () => {
             roleTitle: "Software Engineer",
             status: "APPLIED",
             applicationDate: "2026-07-01",
+            source: "LinkedIn job post",
             notes: "",
             lastActivityDate: "2026-07-01",
           },
@@ -332,6 +327,7 @@ describe("GoogleConnectionPanel", () => {
       roleTitle: "Senior Software Engineer",
       status: "APPLIED" as const,
       applicationDate: "2026-07-19",
+      source: "Indeed",
       notes: "",
       lastActivityDate: "2026-07-19",
     };
@@ -374,6 +370,9 @@ describe("GoogleConnectionPanel", () => {
     fireEvent.change(screen.getByLabelText("Role"), {
       target: { value: "Senior Software Engineer" },
     });
+    fireEvent.change(screen.getByLabelText("Application source"), {
+      target: { value: "Indeed" },
+    });
     fireEvent.click(screen.getByRole("button", { name: "Create application" }));
 
     await waitFor(() => {
@@ -382,6 +381,7 @@ describe("GoogleConnectionPanel", () => {
         roleTitle: "Senior Software Engineer",
         status: "APPLIED",
         applicationDate: "2026-07-19",
+        source: "Indeed",
         notes: "",
       });
     });

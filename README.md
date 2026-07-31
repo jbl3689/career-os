@@ -173,7 +173,8 @@ From the application tracker you can:
 - sign in and out with Google;
 - separately connect and disconnect the same Google account for future
   read-only Gmail access;
-- manually scan a capped recent window and persist candidate message metadata;
+- manually scan all query matches from the last three months and persist
+  candidate message metadata;
 - review suggested application matches, choose a different existing
   application, or dismiss a result;
 - create an application;
@@ -269,6 +270,10 @@ Migration `V7__add_email_message_excerpt.sql` adds:
   the excerpt-aware rules can improve them;
 - preservation of already matched or dismissed decisions.
 
+Migration `V8__add_application_source.sql` adds an optional application-source
+label. Existing applications use an empty source and are displayed as **Not
+specified** until the user chooses one.
+
 The relationships are:
 
 ```text
@@ -340,8 +345,8 @@ grant has already expired or been revoked. Connecting begins at
 
 1. decrypts the current user's refresh token inside the API;
 2. exchanges it with Google for a short-lived access token;
-3. searches at most 10 messages from the last year using a small set of
-   job-related terms;
+3. searches the last three months using a small set of job-related terms,
+   requesting up to 500 message IDs per Gmail page and following every page;
 4. retrieves only the Gmail message ID, thread ID, sender, subject, received
    time, and Gmail's short message snippet;
 5. normalizes and caps the stored excerpt at 500 characters;
@@ -388,12 +393,14 @@ explanation. Refreshing the page clears the most recent scan response, but the
 persisted review queue remains available.
 
 Google's `messages.list` endpoint initially returns only message and thread IDs,
-so the API follows each capped result with a `messages.get` request using
-`format=metadata`. The cap avoids downloading large sections of an inbox while
-the search rules are still experimental.
+so the API follows each matching result with a `messages.get` request using
+`format=metadata`. The three-month search window limits how much of the inbox is
+examined while pagination prevents newer matches from hiding older ones.
 
 Supported statuses are `APPLIED`, `INTERVIEWING`, `OFFER`, `REJECTED`, and
 `WITHDRAWN`. Company name, role title, status, and application date are required.
+Application source is optional and can be selected or corrected from the create
+and application-detail forms.
 The create endpoint returns `201 Created`; invalid requests return `400 Bad
 Request` with field-level errors where possible. Fetching or updating an unknown
 ID returns `404 Not Found`. Updating an application refreshes its last activity

@@ -16,12 +16,24 @@ export const applicationStatusLabels: Record<ApplicationStatus, string> = {
   WITHDRAWN: "Withdrawn",
 };
 
+export const applicationSources = [
+  "LinkedIn recruiter message",
+  "LinkedIn job post",
+  "Indeed",
+  "Jack & Jill AI",
+  "Welcome to the Jungle",
+  "Company website",
+  "Referral",
+  "Other",
+] as const;
+
 export type JobApplication = {
   id: number;
   companyName: string;
   roleTitle: string;
   status: ApplicationStatus;
   applicationDate: string;
+  source: string;
   notes: string;
   lastActivityDate: string;
 };
@@ -31,11 +43,13 @@ export type CreateJobApplication = {
   roleTitle: string;
   status: ApplicationStatus;
   applicationDate: string;
+  source: string;
   notes: string;
 };
 
 export type UpdateJobApplication = {
   status: ApplicationStatus;
+  source: string;
   notes: string;
 };
 

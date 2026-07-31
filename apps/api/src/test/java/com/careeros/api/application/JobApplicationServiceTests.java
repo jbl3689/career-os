@@ -61,6 +61,7 @@ class JobApplicationServiceTests extends PostgresIntegrationTest {
 				"  Software Engineer  ",
 				ApplicationStatus.APPLIED,
 				applicationDate,
+				"  LinkedIn job post  ",
 				"  Applied through the company website.  ");
 
 		JobApplicationResponse created = service.createApplication(user, request);
@@ -68,6 +69,7 @@ class JobApplicationServiceTests extends PostgresIntegrationTest {
 		assertThat(created.id()).isPositive();
 		assertThat(created.companyName()).isEqualTo("Acme Ltd");
 		assertThat(created.roleTitle()).isEqualTo("Software Engineer");
+		assertThat(created.source()).isEqualTo("LinkedIn job post");
 		assertThat(created.notes()).isEqualTo("Applied through the company website.");
 		assertThat(created.lastActivityDate()).isEqualTo(applicationDate);
 		assertThat(service.listApplications(user)).containsExactly(created);
@@ -82,6 +84,7 @@ class JobApplicationServiceTests extends PostgresIntegrationTest {
 				"Senior Software Engineer",
 				ApplicationStatus.APPLIED,
 				LocalDate.of(2026, 7, 18),
+				"Indeed",
 				null));
 
 		assertThat(companyRepository.count()).isEqualTo(1);
@@ -95,6 +98,7 @@ class JobApplicationServiceTests extends PostgresIntegrationTest {
 				"Software Engineer",
 				ApplicationStatus.APPLIED,
 				LocalDate.of(2026, 7, 16),
+				null,
 				null);
 
 		JobApplicationResponse created = service.createApplication(user, request);
@@ -116,11 +120,13 @@ class JobApplicationServiceTests extends PostgresIntegrationTest {
 		JobApplicationResponse created = createApplication();
 		UpdateJobApplicationRequest request = new UpdateJobApplicationRequest(
 				ApplicationStatus.INTERVIEWING,
+				"Welcome to the Jungle",
 				"  First interview booked.  ");
 
 		JobApplicationResponse updated = service.updateApplication(user, created.id(), request);
 
 		assertThat(updated.status()).isEqualTo(ApplicationStatus.INTERVIEWING);
+		assertThat(updated.source()).isEqualTo("Welcome to the Jungle");
 		assertThat(updated.notes()).isEqualTo("First interview booked.");
 		assertThat(updated.lastActivityDate()).isEqualTo(LocalDate.of(2026, 7, 20));
 		assertThat(service.getApplication(user, created.id())).isEqualTo(updated);
@@ -137,7 +143,7 @@ class JobApplicationServiceTests extends PostgresIntegrationTest {
 		JobApplicationResponse updated = service.updateApplication(
 				user,
 				created.id(),
-				new UpdateJobApplicationRequest(ApplicationStatus.INTERVIEWING, null));
+				new UpdateJobApplicationRequest(ApplicationStatus.INTERVIEWING, null, null));
 
 		assertThat(updated.notes()).isEqualTo(created.notes());
 		assertThat(eventTypesFor(created.id())).containsExactly(
@@ -173,6 +179,7 @@ class JobApplicationServiceTests extends PostgresIntegrationTest {
 				"Software Engineer",
 				ApplicationStatus.APPLIED,
 				LocalDate.of(2026, 7, 16),
+				"LinkedIn job post",
 				"Applied through the company website."));
 	}
 

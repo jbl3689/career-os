@@ -51,6 +51,7 @@ class ApplicationRepositoriesTests extends PostgresIntegrationTest {
 				"Software Engineer",
 				ApplicationStatus.APPLIED,
 				LocalDate.of(2026, 7, 16),
+				"LinkedIn job post",
 				"Applied through the company website.",
 				LocalDate.of(2026, 7, 16)));
 		eventRepository.save(new JobEventEntity(
@@ -66,6 +67,7 @@ class ApplicationRepositoriesTests extends PostgresIntegrationTest {
 		assertThat(storedApplication.getCompany().getName()).isEqualTo("Acme Ltd");
 		assertThat(storedApplication.getUser().getEmail()).isEqualTo("developer@example.com");
 		assertThat(storedApplication.getRoleTitle()).isEqualTo("Software Engineer");
+		assertThat(storedApplication.getSource()).isEqualTo("LinkedIn job post");
 		assertThat(eventRepository.findAllByJobApplicationIdOrderByEventDateAscIdAsc(application.getId()))
 				.singleElement()
 				.extracting(JobEventEntity::getEventType)

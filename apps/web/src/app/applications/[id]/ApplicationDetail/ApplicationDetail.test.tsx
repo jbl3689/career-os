@@ -27,6 +27,7 @@ const application: JobApplication = {
   roleTitle: "Software Engineer",
   status: "APPLIED",
   applicationDate: "2026-07-16",
+  source: "LinkedIn job post",
   notes: "Applied through the company website.",
   lastActivityDate: "2026-07-16",
 };
@@ -47,6 +48,7 @@ describe("ApplicationDetail", () => {
       await screen.findByRole("heading", { name: "Software Engineer" }),
     ).toBeDefined();
     expect(screen.getByText("Acme Ltd")).toBeDefined();
+    expect(screen.getAllByText("LinkedIn job post")).toHaveLength(2);
     expect(screen.getByDisplayValue(application.notes)).toBeDefined();
   });
 
@@ -68,11 +70,15 @@ describe("ApplicationDetail", () => {
     fireEvent.change(screen.getByLabelText("Notes"), {
       target: { value: "First interview booked." },
     });
+    fireEvent.change(screen.getByLabelText("Application source"), {
+      target: { value: "Indeed" },
+    });
     fireEvent.click(screen.getByRole("button", { name: "Save changes" }));
 
     await waitFor(() => {
       expect(updateApplication).toHaveBeenCalledWith(1, {
         status: "INTERVIEWING",
+        source: "Indeed",
         notes: "First interview booked.",
       });
     });

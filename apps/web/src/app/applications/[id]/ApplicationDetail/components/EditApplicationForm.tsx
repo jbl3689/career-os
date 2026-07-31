@@ -3,6 +3,7 @@
 import { useMutation, useQueryClient } from "@tanstack/react-query";
 import { useState } from "react";
 import type { FormEvent } from "react";
+import { ApplicationSourceSelect } from "@/components/ApplicationSourceSelect";
 import { ApplicationStatusSelect } from "@/components/ApplicationStatusSelect";
 import { applicationQueryKeys } from "@/lib/application-query-keys";
 import {
@@ -22,6 +23,7 @@ export function EditApplicationForm({
 }) {
   const queryClient = useQueryClient();
   const [status, setStatus] = useState<ApplicationStatus>(application.status);
+  const [source, setSource] = useState(application.source);
   const [notes, setNotes] = useState(application.notes);
   const [successMessage, setSuccessMessage] = useState<string | null>(null);
   const updateMutation = useMutation({
@@ -45,7 +47,7 @@ export function EditApplicationForm({
     updateMutation.reset();
 
     try {
-      await updateMutation.mutateAsync({ status, notes });
+      await updateMutation.mutateAsync({ status, source, notes });
       setSuccessMessage("Application updated.");
     } catch {
       // The mutation error is rendered below the form.
@@ -75,6 +77,17 @@ export function EditApplicationForm({
           />
           {fieldErrors.status ? (
             <p className="mt-1 text-sm text-rose-700">{fieldErrors.status}</p>
+          ) : null}
+        </div>
+
+        <div>
+          <ApplicationSourceSelect
+            id="edit-source"
+            value={source}
+            onChange={setSource}
+          />
+          {fieldErrors.source ? (
+            <p className="mt-1 text-sm text-rose-700">{fieldErrors.source}</p>
           ) : null}
         </div>
 

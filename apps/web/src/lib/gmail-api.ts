@@ -67,7 +67,7 @@ export type GmailScanResult = {
 export function scanGmail(): Promise<GmailScanResult> {
   return apiRequest<GmailScanResult>("/api/v1/gmail/scan", {
     method: "POST",
-    signal: AbortSignal.timeout(15_000),
+    signal: AbortSignal.timeout(60_000),
   });
 }
 

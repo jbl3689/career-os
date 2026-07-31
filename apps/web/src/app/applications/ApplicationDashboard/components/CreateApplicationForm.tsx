@@ -3,6 +3,7 @@
 import { useMutation, useQueryClient } from "@tanstack/react-query";
 import { useRef, useState } from "react";
 import type { FormEvent } from "react";
+import { ApplicationSourceSelect } from "@/components/ApplicationSourceSelect";
 import { ApplicationStatusSelect } from "@/components/ApplicationStatusSelect";
 import { applicationQueryKeys } from "@/lib/application-query-keys";
 import {
@@ -42,6 +43,7 @@ export function CreateApplicationForm() {
       roleTitle: String(formData.get("roleTitle") ?? ""),
       status: String(formData.get("status")) as ApplicationStatus,
       applicationDate: String(formData.get("applicationDate") ?? ""),
+      source: String(formData.get("source") ?? ""),
       notes: String(formData.get("notes") ?? ""),
     };
 
@@ -90,6 +92,11 @@ export function CreateApplicationForm() {
             defaultValue="APPLIED"
           />
           <FieldError message={fieldErrors.status} />
+        </div>
+
+        <div>
+          <ApplicationSourceSelect id="source" name="source" />
+          <FieldError message={fieldErrors.source} />
         </div>
 
         <div>
